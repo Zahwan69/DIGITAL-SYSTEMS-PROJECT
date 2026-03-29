@@ -1,346 +1,112 @@
 # Implementation Guide — AI Past Paper Study Assistant
-### Day-by-Day Roadmap for a Beginner Developer
+### 15-Day Crunch Plan | Cursor IDE Edition
 
 ---
 
 ## How to Use This Document
 
-This guide is written assuming you have **never built a web application before** but are willing to follow instructions carefully. Every day has:
+This guide assumes you are using **Cursor IDE** — an AI-powered code editor that can write, explain, and fix code for you. With Cursor, tasks that would take a beginner a full day can be done in 1–2 hours. That is the reason this plan can compress 10 weeks of work into 15 days.
 
-- A **goal** — what you will have working by the end of the day
-- **Exact steps** — what to do in order
-- **Commands to run** — copy and paste these into your terminal
-- **What to look for** — how you know it worked
-- **Common mistakes** — problems most beginners hit and how to fix them
+Every day has:
+- A **Session Goal** — what must be working before you stop
+- **What to prompt Cursor** — exact things to type into Cursor's chat
+- **What you do manually** — the small things Cursor cannot do for you (account setup, API keys, running commands)
+- **Done checklist** — how you know the day is complete
+- **Commit target** — what to save to GitHub at the end
 
-**Total estimated time: 10 weeks** (working roughly 2–3 hours per day on weekdays, lighter on weekends). This lines up well with a university semester project.
-
-Do not skip days or rush ahead. Each day builds on the last. If something does not work, fix it before moving on — a broken foundation causes much bigger problems later.
+**Plan for 4–6 hours per day.** Some days are lighter (setup days), some are heavier (AI integration days). If you finish early, use the extra time to test and break things — that feeds your report.
 
 ---
 
-## Tools You Need on Your Computer Before Day 1
+## Before Day 1 — Install Everything (1–2 hours, do this the night before)
 
-Install these first. They are all free.
+Do all of this before your first day starts so you are not wasting crunch time on downloads.
 
-### 1. Node.js
-This is what runs JavaScript code on your computer (outside of a browser).
+### Install these on your computer
 
-- Go to https://nodejs.org
-- Download the **LTS** version (the one labelled "Recommended For Most Users")
-- Run the installer, click Next through everything
-- To check it worked: open a terminal and type `node --version` — you should see something like `v20.x.x`
+**1. Node.js LTS**
+- Go to https://nodejs.org → download the LTS version → install it
+- Test: open a terminal and type `node --version` — should show `v20.x.x`
 
-### 2. Visual Studio Code (VS Code)
-This is the code editor you will write all your code in.
+**2. Cursor IDE**
+- Go to https://cursor.com → download for your OS → install it
+- Sign in or create an account (free tier works fine)
+- Open Cursor. The chat panel is on the right side — this is your main tool
 
-- Go to https://code.visualstudio.com
-- Download and install for your operating system
-- Open it once to make sure it works
+**3. Git**
+- Go to https://git-scm.com → install
+- Test: type `git --version` in a terminal
 
-**Recommended VS Code extensions to install (click the puzzle piece icon on the left sidebar):**
-- `Tailwind CSS IntelliSense` — autocompletes Tailwind class names for you
-- `Prettier - Code formatter` — automatically formats your code neatly
-- `ESLint` — highlights mistakes in your code as you type
-- `GitLens` — shows git history inside your editor
+### Create these accounts (all free)
 
-### 3. Git
-This saves your work history and lets you upload code to GitHub.
-
-- Go to https://git-scm.com
-- Download and install
-- To check it worked: type `git --version` in a terminal
-
-### 4. Accounts to Create (All Free)
-
-| Service | URL | What It Is |
+| Account | URL | Time |
 |---|---|---|
-| GitHub | https://github.com | Where your code is stored online |
-| Supabase | https://supabase.com | Your database, login system, and file storage |
-| Google AI Studio | https://aistudio.google.com | Where you get your free Gemini AI key |
-| Vercel | https://vercel.com | Where your finished app will be hosted live |
+| GitHub | https://github.com | 2 min |
+| Supabase | https://supabase.com | 2 min |
+| Google AI Studio | https://aistudio.google.com | 2 min |
+| Vercel | https://vercel.com (sign in with GitHub) | 1 min |
 
-Create all four accounts before Day 1. You do not need to do anything with them yet.
+### Get your API keys tonight
 
-### What a Terminal Is
-A terminal (also called command prompt or shell) is a text window where you type commands. On Windows, search for "Command Prompt" or "PowerShell". On Mac, search for "Terminal". On both, you can also open a terminal inside VS Code by clicking **Terminal → New Terminal** in the top menu bar.
+**Gemini API key:**
+1. Go to https://aistudio.google.com
+2. Click **Get API key** → **Create API key**
+3. Copy and save it somewhere safe (Notes app, text file)
 
----
-
-## Phase 1 — Project Foundation
-### Weeks 1–2 | Days 1–10
-
-**Goal of this phase:** A working Next.js project connected to your database, with a sign-up and log-in page, and a dashboard that shows the user's name.
+**Supabase keys:** You get these on Day 1 when you create the project.
 
 ---
 
-### Day 1 — Create the Project and Understand the Folder Structure
+## Day 1 — Project Scaffolding + Database Setup
+### Goal: A running Next.js app connected to a real database
 
-**Goal:** Have a running Next.js app on your own computer.
+**Time estimate: 4–5 hours**
 
-#### Step 1 — Open your terminal
+---
 
-On Windows: Press `Win + R`, type `cmd`, press Enter.  
-On Mac: Press `Cmd + Space`, type `Terminal`, press Enter.
+### Part A — Create the Next.js Project (30 min, you do this manually)
 
-#### Step 2 — Navigate to where you want to put the project
-
-Type this command (it goes to your Desktop so you can find it easily):
-
-**On Windows:**
-```
-cd Desktop
-```
-
-**On Mac:**
-```
-cd ~/Desktop
-```
-
-#### Step 3 — Create the Next.js project
-
-Copy and paste this exactly:
+Open a terminal (you can use the one inside Cursor: Terminal → New Terminal).
 
 ```bash
 npx create-next-app@latest studyai --typescript --tailwind --eslint --app --no-src-dir --import-alias="@/*"
 ```
 
-It will ask you questions. Answer like this:
-- `Would you like to use React Compiler?` → press Enter (selects No, the default)
-- `Would you like to use Turbopack?` → press Enter (selects No)
+When it asks questions, press Enter to accept all defaults.
 
-Wait about 1–2 minutes for it to finish. You will see: `Success! Created studyai`
-
-#### Step 4 — Open the project in VS Code
-
+Then open the project in Cursor:
 ```bash
 cd studyai
-code .
+cursor .
 ```
 
-This opens your project folder in VS Code.
+Install all packages you will need for the whole project in one go:
+```bash
+npm install @supabase/supabase-js @supabase/ssr @google/generative-ai pdf-parse lucide-react clsx tailwind-merge class-variance-authority @radix-ui/react-progress @radix-ui/react-slot @radix-ui/react-tabs @radix-ui/react-dialog
+```
 
-#### Step 5 — Run the project
-
-In your terminal (or the VS Code terminal), type:
-
+Test the app is running:
 ```bash
 npm run dev
 ```
-
-Open your browser and go to: `http://localhost:3000`
-
-You should see a Next.js welcome page. This means it is working.
-
-#### Step 6 — Learn the folder structure
-
-Open VS Code and look at the files on the left side. Here is what each thing is:
-
-```
-studyai/
-├── app/                  ← Every page of your website lives here
-│   ├── layout.tsx        ← The wrapper around every page (where you put the Navbar)
-│   ├── page.tsx          ← The homepage (what you see at localhost:3000)
-│   └── globals.css       ← Global styles that apply everywhere
-├── public/               ← Images and icons (anything you put here is publicly accessible)
-├── node_modules/         ← Packages installed by npm (never touch this folder)
-├── package.json          ← Lists all packages your project uses
-├── tsconfig.json         ← TypeScript configuration
-└── next.config.ts        ← Next.js configuration
-```
-
-**Do not touch** `node_modules`, `package-lock.json`, or `.next` (if it appears).
-
-#### Today's target
-- [ ] `npm run dev` works without errors
-- [ ] You can see the Next.js welcome page at `localhost:3000`
-- [ ] You understand what the `app/` folder is for
+Open `http://localhost:3000` — you should see the Next.js welcome page.
 
 ---
 
-### Day 2 — Install Packages and Set Up the Folder Structure
+### Part B — Set Up Supabase (45 min, you do this manually)
 
-**Goal:** Install all the libraries the project needs and create the folders you will fill in later.
+**1. Create your Supabase project**
+- Go to https://supabase.com → New Project → name it `studyai`
+- Choose the region closest to you
+- Save the database password somewhere safe
+- Wait ~2 minutes for the project to spin up
 
-#### Step 1 — Stop the running server
-
-In the terminal, press `Ctrl + C` (on both Windows and Mac). This stops `npm run dev`.
-
-#### Step 2 — Install required packages
-
-Copy and paste each command one at a time. Wait for each to finish before typing the next.
-
-```bash
-npm install @supabase/supabase-js @supabase/ssr
-```
-*This installs Supabase — your database and login system.*
-
-```bash
-npm install @google/generative-ai
-```
-*This installs the Google Gemini AI package.*
-
-```bash
-npm install pdf-parse
-```
-*This installs a tool that can read text out of PDF files.*
-
-```bash
-npm install lucide-react
-```
-*This installs a library of clean icons (search icon, upload icon, etc.).*
-
-```bash
-npm install clsx tailwind-merge class-variance-authority
-```
-*These are helper utilities for writing cleaner Tailwind CSS code.*
-
-```bash
-npm install @radix-ui/react-progress @radix-ui/react-slot @radix-ui/react-dialog @radix-ui/react-tabs
-```
-*These are accessible UI building blocks.*
-
-#### Step 3 — Create the folder structure
-
-Run these commands one by one to create all the folders you will need:
-
-```bash
-mkdir -p app/auth/login
-mkdir -p app/auth/signup
-mkdir -p app/dashboard
-mkdir -p app/papers/search
-mkdir -p app/upload
-mkdir -p "app/practice/[id]"
-mkdir -p app/api/analyse
-mkdir -p app/api/grade
-mkdir -p app/api/search
-mkdir -p components/ui
-mkdir -p lib
-mkdir -p types
-```
-
-#### Step 4 — Create a utility file
-
-In VS Code, click on the `lib` folder. Create a new file called `utils.ts`. Paste this inside:
-
-```typescript
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-// This function merges Tailwind classes without conflicts
-// You will use cn() throughout the project instead of writing class names manually
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-// XP and Level calculation helpers
-export function levelFromXp(xp: number): number {
-  return Math.floor(xp / 500) + 1;
-}
-
-export function xpProgressInLevel(xp: number): number {
-  return xp % 500;
-}
-```
-
-#### Step 5 — Create the types file
-
-Create `types/database.ts` and paste:
-
-```typescript
-// These types describe the shape of data in your database
-// TypeScript uses these to catch mistakes before your app runs
-
-export interface Profile {
-  id: string;
-  username: string;
-  full_name: string | null;
-  xp: number;
-  level: number;
-  study_streak: number;
-  last_study_date: string | null;
-  created_at: string;
-}
-
-export interface PastPaper {
-  id: string;
-  uploaded_by: string;
-  subject_name: string;
-  syllabus_code: string;
-  year: number | null;
-  paper_number: string | null;
-  level: "O-Level" | "A-Level" | "IGCSE" | "AS-Level";
-  file_url: string | null;
-  question_count: number;
-  created_at: string;
-}
-
-export interface Question {
-  id: string;
-  paper_id: string;
-  question_number: string;
-  question_text: string;
-  topic: string;
-  marks_available: number;
-  difficulty: "easy" | "medium" | "hard";
-  marking_scheme: string | null;
-  created_at: string;
-}
-
-export interface Attempt {
-  id: string;
-  user_id: string;
-  question_id: string;
-  answer_text: string | null;
-  answer_image_url: string | null;
-  score: number;
-  max_score: number;
-  percentage: number;
-  feedback: string;
-  strengths: string[];
-  improvements: string[];
-  model_answer: string;
-  xp_earned: number;
-  created_at: string;
-}
-
-export interface Achievement {
-  id: string;
-  user_id: string;
-  badge_key: string;
-  badge_name: string;
-  badge_description: string;
-  badge_icon: string;
-  awarded_at: string;
-}
-```
-
-#### Today's target
-- [ ] All packages installed without errors
-- [ ] All folders created
-- [ ] `lib/utils.ts` and `types/database.ts` created
-
----
-
-### Day 3 — Set Up Supabase (Your Database)
-
-**Goal:** Create your database project on Supabase and connect it to your Next.js app.
-
-#### Step 1 — Create a Supabase project
-
-1. Go to https://supabase.com and sign in
-2. Click **New Project**
-3. Choose a name: `studyai`
-4. Set a strong database password (save this somewhere safe)
-5. Choose the region closest to you
-6. Click **Create new project** and wait ~2 minutes
-
-#### Step 2 — Create your database tables
-
-Once the project is created, click **SQL Editor** in the left sidebar. Click **New Query**. Copy and paste this entire block and click **Run**:
+**2. Create all database tables**
+- Click **SQL Editor** → **New Query**
+- Paste the entire block below and click **Run**:
 
 ```sql
--- Profiles table: stores each student's data
+-- Student profiles
 create table profiles (
   id uuid references auth.users on delete cascade primary key,
   username text unique not null,
@@ -352,7 +118,7 @@ create table profiles (
   created_at timestamptz default now() not null
 );
 
--- Past papers table
+-- Past papers uploaded by students
 create table past_papers (
   id uuid default gen_random_uuid() primary key,
   uploaded_by uuid references profiles(id) on delete cascade not null,
@@ -360,14 +126,13 @@ create table past_papers (
   syllabus_code text not null,
   year integer,
   paper_number text,
-  level text check (level in ('O-Level', 'A-Level', 'IGCSE', 'AS-Level')) not null,
+  level text check (level in ('O-Level','A-Level','IGCSE','AS-Level')) not null,
   file_url text,
   question_count integer default 0,
-  is_public boolean default false,
   created_at timestamptz default now() not null
 );
 
--- Questions table
+-- Individual questions extracted from papers
 create table questions (
   id uuid default gen_random_uuid() primary key,
   paper_id uuid references past_papers(id) on delete cascade not null,
@@ -375,12 +140,12 @@ create table questions (
   question_text text not null,
   topic text not null,
   marks_available integer not null,
-  difficulty text check (difficulty in ('easy', 'medium', 'hard')) not null,
+  difficulty text check (difficulty in ('easy','medium','hard')) not null,
   marking_scheme text,
   created_at timestamptz default now() not null
 );
 
--- Attempts table: every time a student answers a question
+-- Every time a student submits an answer
 create table attempts (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
@@ -398,7 +163,7 @@ create table attempts (
   created_at timestamptz default now() not null
 );
 
--- Achievements table
+-- Badges and achievements earned
 create table achievements (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
@@ -410,7 +175,7 @@ create table achievements (
   unique(user_id, badge_key)
 );
 
--- This automatically creates a profile row when someone signs up
+-- Auto-create a profile when someone signs up
 create or replace function handle_new_user()
 returns trigger as $$
 begin
@@ -428,1611 +193,913 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure handle_new_user();
 
--- Security: only logged-in users can read/write their own data
+-- Row Level Security (only you can see your own data)
 alter table profiles enable row level security;
 alter table past_papers enable row level security;
 alter table questions enable row level security;
 alter table attempts enable row level security;
 alter table achievements enable row level security;
 
-create policy "Users can view their own profile" on profiles for select using (auth.uid() = id);
-create policy "Users can update their own profile" on profiles for update using (auth.uid() = id);
-
-create policy "Users can view their own papers" on past_papers for select using (auth.uid() = uploaded_by);
-create policy "Users can insert their own papers" on past_papers for insert with check (auth.uid() = uploaded_by);
-
-create policy "Users can view questions on their papers" on questions for select
-  using (exists (select 1 from past_papers where past_papers.id = questions.paper_id and past_papers.uploaded_by = auth.uid()));
-
-create policy "Users can insert questions" on questions for insert with check (
+create policy "own profile" on profiles for all using (auth.uid() = id);
+create policy "own papers" on past_papers for all using (auth.uid() = uploaded_by);
+create policy "own paper questions" on questions for all using (
   exists (select 1 from past_papers where past_papers.id = questions.paper_id and past_papers.uploaded_by = auth.uid())
 );
-
-create policy "Users can view their own attempts" on attempts for select using (auth.uid() = user_id);
-create policy "Users can insert their own attempts" on attempts for insert with check (auth.uid() = user_id);
-
-create policy "Users can view their own achievements" on achievements for select using (auth.uid() = user_id);
-create policy "Users can insert their own achievements" on achievements for insert with check (auth.uid() = user_id);
+create policy "own attempts" on attempts for all using (auth.uid() = user_id);
+create policy "own achievements" on achievements for all using (auth.uid() = user_id);
 ```
 
-Click **Run**. You should see: `Success. No rows returned.`
+**3. Create Storage buckets**
+- Click **Storage** → **New bucket** → name: `papers` → private
+- Create another: name: `answers` → private
 
-#### Step 3 — Set up Supabase Storage
-
-1. Click **Storage** in the left sidebar
-2. Click **Create a new bucket**
-3. Name it `papers` — make sure **Public bucket** is OFF
-4. Create another bucket named `answers` — also keep it private
-
-#### Step 4 — Get your API keys
-
-1. Click **Settings** (gear icon) → **API**
-2. You will see:
-   - **Project URL** — starts with `https://`
-   - **anon public** key — a long string of letters
-   - **service_role** key — another long string (keep this one secret)
-
-#### Step 5 — Create your environment variables file
-
-In your project folder (in VS Code), create a new file at the root level called `.env.local`:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=paste_your_project_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=paste_your_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=paste_your_service_role_key_here
-GEMINI_API_KEY=you_will_add_this_on_day_5
-```
-
-**Important:** Add `.env.local` to your `.gitignore` file so it is never uploaded to GitHub. Open `.gitignore` and check that this line exists: `.env.local` (it should already be there in a Next.js project).
-
-#### Step 6 — Create the Supabase connection file
-
-Create `lib/supabase.ts`:
-
-```typescript
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// This client is used in the browser (for logged-in user actions)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// This client is used on the server only (for admin-level actions in API routes)
-// Never use this in browser-facing code
-export function createServerClient() {
-  return createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
-```
-
-#### Today's target
-- [ ] Supabase project created
-- [ ] All 5 database tables created successfully (check in Table Editor)
-- [ ] Two storage buckets created (`papers` and `answers`)
-- [ ] `.env.local` file created with your keys
-- [ ] `lib/supabase.ts` created
+**4. Copy your API keys**
+- Go to **Settings → API**
+- Copy: Project URL, anon public key, service_role key
 
 ---
 
-### Day 4 — Build the Sign-Up and Log-In Pages
+### Part C — Connect the App to Supabase (30 min — Cursor does most of this)
 
-**Goal:** A real working sign-up and log-in system.
+Create a `.env.local` file in your project root manually (File → New File in Cursor):
 
-#### Step 1 — Understand the file structure for pages in Next.js
-
-In the App Router (which is what you are using), every folder inside `/app` is a URL route:
-- `app/page.tsx` → `localhost:3000/`
-- `app/auth/login/page.tsx` → `localhost:3000/auth/login`
-- `app/dashboard/page.tsx` → `localhost:3000/dashboard`
-
-Every route folder needs a file called `page.tsx`.
-
-#### Step 2 — Create a reusable Button component
-
-Create `components/ui/button.tsx`:
-
-```typescript
-// This is a reusable button that can look different depending on the "variant" prop
-// For example: <Button variant="outline"> gives an outlined button
-
-import * as React from "react";
-import { cn } from "@/lib/utils";
-
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "outline" | "ghost";
-  size?: "sm" | "default" | "lg";
-}
-
-export function Button({
-  className,
-  variant = "default",
-  size = "default",
-  ...props
-}: ButtonProps) {
-  return (
-    <button
-      className={cn(
-        // Base styles that apply to every button
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-        // Size variations
-        size === "sm" && "h-8 px-3 text-xs",
-        size === "default" && "h-10 px-4 text-sm",
-        size === "lg" && "h-12 px-6 text-base",
-        // Style variations
-        variant === "default" && "bg-indigo-600 text-white hover:bg-indigo-700",
-        variant === "outline" && "border border-slate-200 text-slate-700 hover:bg-slate-50",
-        variant === "ghost" && "text-slate-600 hover:bg-slate-100",
-        className
-      )}
-      {...props}
-    />
-  );
-}
+```
+NEXT_PUBLIC_SUPABASE_URL=your_project_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+GEMINI_API_KEY=your_gemini_key_here
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-#### Step 3 — Create a reusable Input component
+Now open Cursor's chat (press `Ctrl+L` or `Cmd+L`) and type:
 
-Create `components/ui/input.tsx`:
+> **Cursor prompt:**
+> "Create the following files for a Next.js 14 project using Supabase and Google Gemini AI:
+> 1. `lib/supabase.ts` — exports a browser-side `supabase` client using `createClient` from `@supabase/supabase-js`, and a `createServerClient()` function using the service role key for use in API routes only
+> 2. `lib/gemini.ts` — exports `geminiFlash` using `@google/generative-ai` with model `gemini-1.5-flash`
+> 3. `lib/utils.ts` — exports a `cn()` function using clsx and tailwind-merge, plus `levelFromXp(xp)` that returns `Math.floor(xp/500)+1`, and `xpProgressInLevel(xp)` that returns `xp % 500`
+> 4. `types/database.ts` — TypeScript interfaces for: Profile (id, username, full_name, xp, level, study_streak, last_study_date, created_at), PastPaper, Question (with marking_scheme field), Attempt (with score, max_score, percentage, feedback, strengths string[], improvements string[], model_answer, xp_earned), Achievement"
 
-```typescript
-import * as React from "react";
-import { cn } from "@/lib/utils";
-
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
-
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, ...props }, ref) => (
-    <input
-      ref={ref}
-      className={cn(
-        "flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm",
-        "placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500",
-        "disabled:opacity-50 disabled:cursor-not-allowed",
-        className
-      )}
-      {...props}
-    />
-  )
-);
-Input.displayName = "Input";
-```
-
-#### Step 4 — Create the Log-In page
-
-Create `app/auth/login/page.tsx`:
-
-```typescript
-"use client"; // This line tells Next.js this page runs in the browser, not the server
-
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-export default function LoginPage() {
-  // useState creates a variable that, when changed, re-renders the page
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const router = useRouter(); // used to navigate to a different page after login
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault(); // stops the page from refreshing when you click submit
-    setLoading(true);
-    setError(null);
-
-    // Call Supabase to check the email and password
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      setError(error.message); // show the error message to the user
-      setLoading(false);
-    } else {
-      router.push("/dashboard"); // go to the dashboard on success
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h1>
-          <p className="text-slate-500 text-sm mb-6">Sign in to continue studying</p>
-
-          {/* Show error if login fails */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Email address
-              </label>
-              <Input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Password
-              </label>
-              <Input
-                type="password"
-                placeholder="Your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
-            </Button>
-          </form>
-
-          <p className="text-sm text-center text-slate-600 mt-6">
-            Don&apos;t have an account?{" "}
-            <Link href="/auth/signup" className="text-indigo-600 font-medium hover:underline">
-              Create one free
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-```
-
-#### Step 5 — Create the Sign-Up page
-
-Create `app/auth/signup/page.tsx`:
-
-```typescript
-"use client";
-
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-export default function SignupPage() {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
-  async function handleSignup(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      setLoading(false);
-      return;
-    }
-
-    const { data, error: signupError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        // These extra details are passed to the trigger that creates the profile row
-        data: { username },
-      },
-    });
-
-    if (signupError) {
-      setError(signupError.message);
-      setLoading(false);
-    } else if (data.session) {
-      // If email confirmation is disabled in Supabase, they are logged in immediately
-      router.push("/dashboard");
-    } else {
-      // Email confirmation is required — tell them to check their inbox
-      setError("Account created! Check your email to confirm, then sign in.");
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Create your account</h1>
-          <p className="text-slate-500 text-sm mb-6">Free. No credit card needed.</p>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSignup} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
-              <Input
-                type="text"
-                placeholder="e.g. john_student"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                minLength={3}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email address</label>
-              <Input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-              <Input
-                type="password"
-                placeholder="At least 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create free account"}
-            </Button>
-          </form>
-
-          <p className="text-sm text-center text-slate-600 mt-6">
-            Already have an account?{" "}
-            <Link href="/auth/login" className="text-indigo-600 font-medium hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-```
-
-#### Step 6 — Test it
-
-Run `npm run dev`. Go to `http://localhost:3000/auth/signup`. Create an account. Then go to `http://localhost:3000/auth/login` and sign in.
-
-Check in Supabase → Table Editor → `profiles` — you should see a row for your new account.
-
-**Common mistake:** If you get "Invalid API key" errors, double-check your `.env.local` file has no spaces around the `=` sign.
-
-#### Today's target
-- [ ] Sign-up page works and creates a row in the profiles table
-- [ ] Log-in page works and does not show an error for valid credentials
-- [ ] Supabase Table Editor shows your new profile row
+Accept the generated files. Quickly read through them — if anything looks wrong, ask Cursor to fix it.
 
 ---
 
-### Day 5 — Get Your Gemini API Key and Build the Dashboard
+### Part D — Create the Folder Structure (5 min, you do this)
 
-**Goal:** A dashboard page the student sees after logging in, showing their name and XP.
-
-#### Step 1 — Get your Gemini API key
-
-1. Go to https://aistudio.google.com
-2. Sign in with your Google account
-3. Click **Get API key** → **Create API key**
-4. Copy the key
-5. Open `.env.local` and replace `you_will_add_this_on_day_5` with your actual key:
-   ```
-   GEMINI_API_KEY=AIzaSy...your_actual_key_here
-   ```
-
-#### Step 2 — Create the Gemini connection file
-
-Create `lib/gemini.ts`:
-
-```typescript
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// This creates a connection to the Gemini AI using your API key
-// The API key is only used on the server (in API routes), never in the browser
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
-// geminiFlash is the fast, free model we use for most tasks
-export const geminiFlash = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-});
+In the Cursor terminal:
+```bash
+mkdir -p app/auth/login app/auth/signup app/dashboard app/papers app/papers/search "app/practice/[id]" app/upload app/api/analyse app/api/grade app/api/search components/ui
 ```
-
-#### Step 3 — Create the Navbar component
-
-Create `components/Navbar.tsx`:
-
-```typescript
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
-
-// These are the navigation links shown in the top bar
-const navLinks = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/papers", label: "My Papers" },
-  { href: "/upload", label: "Upload" },
-  { href: "/papers/search", label: "Search" },
-];
-
-export function Navbar() {
-  const pathname = usePathname();
-  const router = useRouter();
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-  }
-
-  return (
-    <header className="sticky top-0 z-50 bg-white border-b border-slate-200">
-      <div className="mx-auto max-w-7xl px-4 flex h-16 items-center justify-between">
-        {/* Logo */}
-        <Link href="/dashboard" className="font-bold text-indigo-600 text-lg">
-          StudyAI ⚡
-        </Link>
-
-        {/* Navigation links */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname.startsWith(link.href)
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Sign out button */}
-        <button
-          onClick={handleSignOut}
-          className="text-sm text-slate-600 hover:text-slate-900"
-        >
-          Sign out
-        </button>
-      </div>
-    </header>
-  );
-}
-```
-
-#### Step 4 — Create the Dashboard page
-
-Create `app/dashboard/page.tsx`:
-
-```typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { Navbar } from "@/components/Navbar";
-import { levelFromXp, xpProgressInLevel } from "@/lib/utils";
-import type { Profile } from "@/types/database";
-import Link from "next/link";
-
-export default function DashboardPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // useEffect runs after the page loads
-    // Here we fetch the logged-in user's profile from Supabase
-    async function loadProfile() {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        window.location.href = "/auth/login"; // redirect if not logged in
-        return;
-      }
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (data) setProfile(data as Profile);
-      setLoading(false);
-    }
-
-    loadProfile();
-  }, []); // the [] means "only run this once, when the page first loads"
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <Navbar />
-        <div className="flex items-center justify-center h-96">
-          <p className="text-slate-500">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!profile) return null;
-
-  const level = levelFromXp(profile.xp);
-  const xpInLevel = xpProgressInLevel(profile.xp);
-  const progressPercent = (xpInLevel / 500) * 100;
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-7xl px-4 py-8">
-
-        {/* Welcome message */}
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">
-          Welcome back, {profile.username}! 👋
-        </h1>
-        <p className="text-slate-500 mb-8">
-          Ready to study? You are on a {profile.study_streak}-day streak!
-        </p>
-
-        {/* Level and XP card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6 max-w-md">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-3xl font-bold text-slate-900">Level {level}</p>
-              <p className="text-slate-500 text-sm">{profile.xp} XP total</p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl">🔥</p>
-              <p className="text-sm text-orange-600 font-semibold">{profile.study_streak} day streak</p>
-            </div>
-          </div>
-
-          {/* XP progress bar */}
-          <div className="mb-1">
-            <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-          <p className="text-xs text-slate-500 text-right">
-            {xpInLevel} / 500 XP to Level {level + 1}
-          </p>
-        </div>
-
-        {/* Quick action buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
-          <Link
-            href="/papers/search"
-            className="bg-white rounded-xl border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-md transition-all"
-          >
-            <p className="text-2xl mb-2">🔍</p>
-            <p className="font-semibold text-slate-800">Search Papers</p>
-            <p className="text-xs text-slate-500 mt-0.5">Find by syllabus code</p>
-          </Link>
-
-          <Link
-            href="/upload"
-            className="bg-white rounded-xl border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-md transition-all"
-          >
-            <p className="text-2xl mb-2">📤</p>
-            <p className="font-semibold text-slate-800">Upload Paper</p>
-            <p className="text-xs text-slate-500 mt-0.5">Upload a PDF</p>
-          </Link>
-
-          <Link
-            href="/papers"
-            className="bg-white rounded-xl border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-md transition-all"
-          >
-            <p className="text-2xl mb-2">📚</p>
-            <p className="font-semibold text-slate-800">My Papers</p>
-            <p className="text-xs text-slate-500 mt-0.5">Browse saved papers</p>
-          </Link>
-        </div>
-
-      </main>
-    </div>
-  );
-}
-```
-
-#### Step 5 — Test everything
-
-Run `npm run dev`. Go to `localhost:3000/auth/login`, sign in, and you should be redirected to the dashboard. You should see your username and Level 1 with 0 XP.
-
-#### Today's target
-- [ ] Gemini API key added to `.env.local`
-- [ ] Dashboard shows logged-in user's username, level, and XP bar
-- [ ] Navbar appears with working navigation links
-- [ ] Sign out button works and returns to login page
 
 ---
 
-### Days 6–7 — Buffer Days
+### Day 1 Done Checklist
+- [ ] `npm run dev` runs without errors
+- [ ] Supabase has 5 tables visible in the Table Editor
+- [ ] `.env.local` has all 4 keys filled in
+- [ ] `lib/supabase.ts`, `lib/gemini.ts`, `lib/utils.ts`, `types/database.ts` all exist
 
-Use these two days to:
-
-1. Fix anything from Days 1–5 that is not working
-2. Read the Next.js App Router documentation: https://nextjs.org/docs/app
-3. Read the Supabase JavaScript documentation: https://supabase.com/docs/reference/javascript
-4. Practise: try changing colours in `globals.css` and the dashboard. Break things. Fix them. This is how you learn.
-5. Commit your work to GitHub (instructions below)
-
-#### How to Save Your Work to GitHub
-
-1. Go to https://github.com and create a new repository called `studyai`
-2. In your terminal:
+### Day 1 Commit
 ```bash
 git init
 git add .
-git commit -m "Phase 1: foundation, auth, and dashboard"
-git branch -M main
+git commit -m "day 1: project scaffold, database, supabase + gemini connections"
+```
+Then create a GitHub repo and push:
+```bash
 git remote add origin https://github.com/YOUR_USERNAME/studyai.git
 git push -u origin main
 ```
-Replace `YOUR_USERNAME` with your GitHub username.
 
 ---
 
-## Phase 2 — Paper Ingestion
-### Weeks 3–4 | Days 8–17
+## Day 2 — UI Components + Authentication Pages
+### Goal: Working sign-up, log-in, and a styled shell
 
-**Goal of this phase:** A working upload page that sends a PDF to Gemini and saves the extracted questions to the database.
-
----
-
-### Day 8 — Understand How API Routes Work in Next.js
-
-**Goal:** Build your first API route — a simple one that just returns "Hello" — so you understand the concept before building the real ones.
-
-#### What is an API Route?
-
-An API Route is a piece of server-side code. When your browser sends a request to it, it runs on the server (not the browser), does something (talk to the AI, save to the database), and sends back a response.
-
-Think of it like a waiter: the browser (customer) places an order, the API route (waiter) takes the order to the kitchen (Gemini or Supabase), and brings back the result.
-
-#### Step 1 — Create a test API route
-
-Create a file at `app/api/test/route.ts`:
-
-```typescript
-import { NextResponse } from "next/server";
-
-// This function runs when someone makes a GET request to /api/test
-export async function GET() {
-  return NextResponse.json({ message: "API is working!" });
-}
-
-// This function runs when someone makes a POST request to /api/test
-export async function POST(request: Request) {
-  const body = await request.json(); // read what was sent
-  return NextResponse.json({ received: body });
-}
-```
-
-#### Step 2 — Test it
-
-Make sure `npm run dev` is running. Open your browser and go to:
-`http://localhost:3000/api/test`
-
-You should see: `{"message":"API is working!"}`
-
-This confirms your API routes are set up correctly. Now you are ready to build real ones.
-
-#### Today's target
-- [ ] Test API route works and returns JSON
-- [ ] You understand the difference between a page file (`page.tsx`) and a route file (`route.ts`)
+**Time estimate: 4–5 hours**
 
 ---
 
-### Day 9 — Build the Paper Upload Page (Frontend)
+### Part A — Build Core UI Components (Cursor does this)
 
-**Goal:** A page with a file picker and a form. No AI yet — just the UI.
+Open Cursor chat and type:
 
-Create `app/upload/page.tsx`:
+> **Cursor prompt:**
+> "Create these reusable UI components for a Next.js app with Tailwind CSS. All files go in `components/ui/`:
+>
+> 1. `button.tsx` — a Button component with variants: `default` (indigo-600 filled), `outline` (bordered), `ghost` (transparent hover). Sizes: `sm`, `default`, `lg`. Use forwardRef and accept all standard button HTML attributes. Use the `cn` util from `@/lib/utils`.
+>
+> 2. `input.tsx` — an Input component that forwards ref, has a ring-indigo-500 focus style, rounded-lg border, full width. Accepts all standard input HTML attributes.
+>
+> 3. `textarea.tsx` — same as Input but for textarea, with min-h-[100px] and resize-none.
+>
+> 4. `badge.tsx` — a Badge span component with variants: `default` (indigo), `secondary` (slate-100), `success` (green), `warning` (amber), `easy` (green), `medium` (amber), `hard` (red).
+>
+> 5. `card.tsx` — Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter components. White background, rounded-xl, border border-slate-200, shadow-sm."
 
-```typescript
-"use client";
-
-import { useState } from "react";
-import { Navbar } from "@/components/Navbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-// These are the options for exam level shown in the dropdown
-const LEVELS = ["IGCSE", "O-Level", "AS-Level", "A-Level"] as const;
-
-export default function UploadPage() {
-  // Form state
-  const [subjectName, setSubjectName] = useState("");
-  const [syllabusCode, setSyllabusCode] = useState("");
-  const [year, setYear] = useState("");
-  const [level, setLevel] = useState<string>("IGCSE");
-  const [file, setFile] = useState<File | null>(null);
-
-  // Status state
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files?.[0];
-    if (selected && selected.type === "application/pdf") {
-      setFile(selected);
-      setError(null);
-    } else {
-      setError("Please select a PDF file.");
-    }
-  }
-
-  async function handleUpload(e: React.FormEvent) {
-    e.preventDefault();
-    if (!file) {
-      setError("Please choose a PDF file first.");
-      return;
-    }
-
-    setLoading(true);
-    setStatus("Uploading your paper...");
-    setError(null);
-
-    // We use FormData to send a file alongside other text fields
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("subjectName", subjectName);
-    formData.append("syllabusCode", syllabusCode);
-    formData.append("year", year);
-    formData.append("level", level);
-
-    try {
-      const res = await fetch("/api/analyse", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Upload failed.");
-      }
-
-      const data = await res.json();
-      setStatus(`Done! ${data.questionCount} questions extracted and saved.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-2xl px-4 py-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Upload a Past Paper</h1>
-        <p className="text-slate-500 mb-8">
-          Upload a PDF and the AI will extract and organise every question by topic.
-        </p>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
-              {error}
-            </div>
-          )}
-          {status && (
-            <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-4">
-              {status}
-            </div>
-          )}
-
-          <form onSubmit={handleUpload} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Subject Name
-              </label>
-              <Input
-                placeholder="e.g. Mathematics, Physics, Biology"
-                value={subjectName}
-                onChange={(e) => setSubjectName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Syllabus Code
-                </label>
-                <Input
-                  placeholder="e.g. 0580"
-                  value={syllabusCode}
-                  onChange={(e) => setSyllabusCode(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Year (optional)
-                </label>
-                <Input
-                  placeholder="e.g. 2023"
-                  value={year}
-                  onChange={(e) => setYear(e.target.value)}
-                  maxLength={4}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Exam Level
-              </label>
-              <select
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-                className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-              >
-                {LEVELS.map((l) => (
-                  <option key={l} value={l}>{l}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                PDF File
-              </label>
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-medium hover:file:bg-indigo-100"
-              />
-              {file && (
-                <p className="text-xs text-slate-500 mt-1">Selected: {file.name}</p>
-              )}
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? status || "Processing..." : "Upload and analyse with AI"}
-            </Button>
-          </form>
-        </div>
-      </main>
-    </div>
-  );
-}
-```
-
-#### Today's target
-- [ ] Upload page renders at `localhost:3000/upload`
-- [ ] Form shows all fields and file picker
-- [ ] Selecting a non-PDF file shows an error message
-- [ ] Submit button exists (it will fail since the API route does not exist yet — that is expected)
+Review and accept. Run `npm run dev` to make sure no TypeScript errors appear.
 
 ---
 
-### Day 10 — Build the Paper Analysis API Route
+### Part B — Build the Navbar (Cursor does this)
 
-**Goal:** The backend that receives the PDF, sends it to Gemini, and saves questions to the database.
-
-Create `app/api/analyse/route.ts`:
-
-```typescript
-import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
-import { geminiFlash } from "@/lib/gemini";
-
-export async function POST(request: Request) {
-  try {
-    // Read the uploaded form data (the PDF and the text fields)
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
-    const subjectName = formData.get("subjectName") as string;
-    const syllabusCode = formData.get("syllabusCode") as string;
-    const year = formData.get("year") as string;
-    const level = formData.get("level") as string;
-
-    if (!file || !subjectName || !syllabusCode) {
-      return NextResponse.json(
-        { error: "Missing required fields." },
-        { status: 400 }
-      );
-    }
-
-    // Convert the PDF file into a format Gemini can read
-    const pdfBytes = await file.arrayBuffer();
-    const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
-
-    // This is the instruction we send to Gemini alongside the PDF
-    const prompt = `You are an expert at analysing Cambridge O-Level and A-Level past examination papers.
-
-Read this ${subjectName} past paper PDF and extract every question.
-
-For each question, return this exact JSON format (return ONLY the JSON, no extra text):
-{
-  "questions": [
-    {
-      "questionNumber": "1",
-      "questionText": "Full text of the question exactly as written",
-      "topic": "Specific topic name (e.g. Quadratic Equations, Cell Division, Causes of WW1)",
-      "marksAvailable": 4,
-      "difficulty": "easy",
-      "markingScheme": "The expected answer points if you can infer them from context, or null"
-    }
-  ]
-}
-
-Rules:
-- difficulty must be exactly "easy" (1-2 marks), "medium" (3-6 marks), or "hard" (7+ marks)
-- topic must be a specific syllabus topic, not a generic label like "Question 1"
-- Include every question including sub-parts
-- If you cannot determine a marking scheme, set markingScheme to null
-- Return ONLY valid JSON`;
-
-    // Send the PDF and the prompt to Gemini
-    const result = await geminiFlash.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType: "application/pdf",
-          data: pdfBase64,
-        },
-      },
-    ]);
-
-    const responseText = result.response.text().trim();
-
-    // Parse Gemini's JSON response
-    let questions;
-    try {
-      const parsed = JSON.parse(responseText);
-      questions = parsed.questions;
-    } catch {
-      // If Gemini added text around the JSON, find the JSON part
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        return NextResponse.json(
-          { error: "AI could not extract questions. Try a clearer PDF." },
-          { status: 422 }
-        );
-      }
-      const parsed = JSON.parse(jsonMatch[0]);
-      questions = parsed.questions;
-    }
-
-    // Get the logged-in user
-    const supabase = createServerClient();
-    // Note: for a real app you would get the user from the session cookie
-    // For now we get it from the request (simplified)
-    const authHeader = request.headers.get("authorization");
-
-    // Save the paper record to the database
-    const { data: paper, error: paperError } = await supabase
-      .from("past_papers")
-      .insert({
-        uploaded_by: "00000000-0000-0000-0000-000000000000", // placeholder — fix on Day 12
-        subject_name: subjectName,
-        syllabus_code: syllabusCode,
-        year: year ? parseInt(year) : null,
-        level: level,
-        question_count: questions.length,
-      })
-      .select()
-      .single();
-
-    if (paperError) throw paperError;
-
-    // Save all the extracted questions
-    const questionRows = questions.map((q: any) => ({
-      paper_id: paper.id,
-      question_number: q.questionNumber,
-      question_text: q.questionText,
-      topic: q.topic,
-      marks_available: q.marksAvailable,
-      difficulty: q.difficulty,
-      marking_scheme: q.markingScheme || null,
-    }));
-
-    const { error: questionsError } = await supabase
-      .from("questions")
-      .insert(questionRows);
-
-    if (questionsError) throw questionsError;
-
-    return NextResponse.json({
-      success: true,
-      paperId: paper.id,
-      questionCount: questions.length,
-    });
-
-  } catch (err) {
-    console.error("Analyse error:", err);
-    return NextResponse.json(
-      { error: "Something went wrong. Check the server logs." },
-      { status: 500 }
-    );
-  }
-}
-```
-
-**Note:** This is a simplified version. On Day 12 you will fix the user authentication so the paper is saved against the actual logged-in user.
-
-#### Today's target
-- [ ] API route created at `app/api/analyse/route.ts`
-- [ ] When you upload a PDF through the upload page, you see a success message
-- [ ] Check Supabase Table Editor → `questions` table and see the extracted rows
+> **Cursor prompt:**
+> "Create `components/Navbar.tsx` — a sticky top navigation bar for a Next.js app. It should:
+> - Show a logo on the left: a lightning bolt emoji ⚡ and 'StudyAI' in indigo-600
+> - Show nav links in the middle for: Dashboard (/dashboard), My Papers (/papers), Upload (/upload), Search (/papers/search)
+> - Highlight the active link using `usePathname()` with an indigo-50 background
+> - Show a 'Sign out' button on the right that calls `supabase.auth.signOut()` and redirects to `/auth/login`
+> - Be fully responsive — collapse links to a hamburger menu on mobile using useState
+> - Use `'use client'` directive
+> - Import supabase from `@/lib/supabase`"
 
 ---
 
-### Days 11–12 — Fix User Authentication in API Routes and Build the Papers List Page
+### Part C — Build Auth Pages (Cursor does this)
 
-**Goal:** Connect the real logged-in user to the papers they upload, and build a page that lists all their papers.
+> **Cursor prompt:**
+> "Create `app/auth/login/page.tsx` — a login page for a Next.js 14 app router app. It should:
+> - Use `'use client'`
+> - Have useState for email, password, loading (boolean), error (string | null)
+> - Call `supabase.auth.signInWithPassword()` on form submit
+> - On success redirect to `/dashboard` using `useRouter`
+> - On error show the error message in a red alert box
+> - Be centered on the page with max-w-md, white card with shadow
+> - Include a link to `/auth/signup`
+> - Import supabase from `@/lib/supabase`, Button from `@/components/ui/button`, Input from `@/components/ui/input`"
 
-These two days cover fixing the placeholder user ID, building the papers list page (`app/papers/page.tsx`), and understanding Supabase Row Level Security.
+> **Cursor prompt:**
+> "Create `app/auth/signup/page.tsx` — same pattern as login but for sign up. Fields: username, email, password. Call `supabase.auth.signUp()` with `options.data: { username }`. If `data.session` exists after signup, redirect to `/dashboard`. If not (email confirmation required), show a green success message saying to check their email. Include password length validation (min 8 chars)."
 
-Full detailed instructions for these days follow the same pattern as above. The key code to add is:
+---
 
-**In your API route, get the actual user:**
-```typescript
-// Get the user's token from cookies (requires @supabase/ssr for production)
-// Simplified approach for learning: use the anon client with the user's session
-const { data: { user }, error: authError } = await supabase.auth.getUser();
-if (authError || !user) {
-  return NextResponse.json({ error: "Not logged in." }, { status: 401 });
-}
-// Then use user.id instead of the placeholder
-```
+### Part D — Update the Root Layout and Globals
 
-**Papers list page structure:**
-```typescript
-// Fetch all papers for the current user, display as a grid of cards
-// Each card links to /papers/[id] where the questions are listed
+> **Cursor prompt:**
+> "Update `app/layout.tsx` to set the page title to 'StudyAI — AI Past Paper Assistant' and the background to bg-slate-50. Update `app/globals.css` to import tailwindcss, set a clean system font stack on the body, and add a custom scrollbar style using ::-webkit-scrollbar with a slate-200 track and slate-400 thumb."
+
+---
+
+### Part E — Test Auth
+
+Run `npm run dev`. Go to `localhost:3000/auth/signup`. Sign up with a test email and password. Check Supabase → Table Editor → `profiles` — your username should appear.
+
+Then go to `localhost:3000/auth/login` and sign in.
+
+### Day 2 Done Checklist
+- [ ] All 5 UI components exist and have no TypeScript errors
+- [ ] Navbar renders correctly and active link is highlighted
+- [ ] Sign-up creates a profile row in Supabase
+- [ ] Log-in works and does not error on valid credentials
+
+### Day 2 Commit
+```bash
+git add . && git commit -m "day 2: UI components, navbar, auth pages"
+git push
 ```
 
 ---
 
-### Days 13–15 — Paper Detail Page and Question List
+## Day 3 — Dashboard Page
+### Goal: After login, student sees their name, XP bar, level, streak, and quick action links
 
-**Goal:** Click on a paper and see all its questions, filtered by topic and difficulty.
-
-Create `app/papers/page.tsx` (list of papers) and `app/papers/[id]/page.tsx` (individual paper with question list).
-
-Key concepts to learn on these days:
-- **Dynamic routes** — the `[id]` in the folder name means the URL can be anything (`/papers/abc123`). You read the `id` from the URL using `params.id`.
-- **Filtering** — use `useState` to filter the displayed questions by topic or difficulty without re-fetching from the database.
+**Time estimate: 3–4 hours**
 
 ---
 
-### Days 16–17 — Buffer Days
+### Cursor Prompt — Full Dashboard
 
-- Fix any bugs from this phase
-- Test uploading 3 different Cambridge papers (Maths, Physics, Biology)
-- Evaluate: are the AI's topic labels sensible? Are the extracted questions complete?
-- Document any problems with the AI extraction in your project notes (this is content for your report's critical evaluation section)
-- Commit and push to GitHub
+> **Cursor prompt:**
+> "Create `app/dashboard/page.tsx` for a Next.js 14 app router project. This is the main student dashboard. Requirements:
+>
+> - Use `'use client'`
+> - On mount (useEffect), call `supabase.auth.getUser()`. If no user, redirect to `/auth/login`. Otherwise fetch the profile from the `profiles` table.
+> - Show a welcome heading: 'Welcome back, [username]! 👋'
+> - Show a Level card containing:
+>   - The level number calculated as `Math.floor(xp / 500) + 1`
+>   - Total XP shown as a number
+>   - A progress bar showing XP progress within the current level (xp % 500 out of 500)
+>   - Text: '[xpInLevel] / 500 XP to Level [nextLevel]'
+>   - A fire emoji 🔥 and the study streak number
+> - Below that, show 3 quick action cards in a grid (links using Next.js Link):
+>   - 🔍 Search Papers → /papers/search
+>   - 📤 Upload Paper → /upload
+>   - 📚 My Papers → /papers
+> - Show a section called 'How to earn XP' listing: answer a question (+10), full marks (+25), complete a paper (+100), 3-day streak (+50 bonus), 7-day streak (+150 bonus)
+> - Use the Navbar component from `@/components/Navbar`
+> - Import supabase from `@/lib/supabase`
+> - Import types from `@/types/database`
+> - Style with Tailwind, white cards with rounded-xl border border-slate-200 shadow-sm"
 
----
+After Cursor generates the code, run it. Sign in and check that the dashboard loads your username.
 
-## Phase 3 — Practice Mode (Answer & Grade)
-### Weeks 5–6 | Days 18–27
+If anything is wrong (e.g. the XP bar doesn't show, or the level is incorrect), tell Cursor exactly what you see:
 
-**Goal of this phase:** A student can click on a question, type their answer, and receive AI-generated feedback with a score.
+> **Cursor fix prompt:** "The XP progress bar is not showing. The value is 0 even though the user has 0 XP which should show an empty bar, not nothing. Fix the progress bar to always render, even when XP is 0."
 
----
+### Day 3 Done Checklist
+- [ ] Dashboard shows logged-in user's username
+- [ ] Level displays as 1 (for a new user with 0 XP)
+- [ ] XP bar renders (empty for 0 XP)
+- [ ] Study streak shows 0
+- [ ] Three quick action cards link correctly
 
-### Day 18 — Build the Practice Page (Frontend)
-
-**Goal:** A page that shows one question and accepts a text answer.
-
-Create `app/practice/[id]/page.tsx`:
-
-```typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { Navbar } from "@/components/Navbar";
-import { Button } from "@/components/ui/button";
-import type { Question } from "@/types/database";
-
-export default function PracticePage() {
-  const { id } = useParams(); // gets the question ID from the URL
-  const [question, setQuestion] = useState<Question | null>(null);
-  const [answer, setAnswer] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<null | {
-    score: number;
-    maxScore: number;
-    percentage: number;
-    feedback: string;
-    strengths: string[];
-    improvements: string[];
-    modelAnswer: string;
-  }>(null);
-
-  useEffect(() => {
-    async function loadQuestion() {
-      const { data } = await supabase
-        .from("questions")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (data) setQuestion(data as Question);
-    }
-    loadQuestion();
-  }, [id]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!question || !answer.trim()) return;
-
-    setLoading(true);
-
-    const res = await fetch("/api/grade", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        questionId: question.id,
-        questionText: question.question_text,
-        markingScheme: question.marking_scheme,
-        maxMarks: question.marks_available,
-        answerText: answer,
-      }),
-    });
-
-    const data = await res.json();
-    setResult(data);
-    setLoading(false);
-  }
-
-  if (!question) return <div className="p-8 text-slate-500">Loading question...</div>;
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-3xl px-4 py-8">
-
-        {/* Question card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
-              {question.topic}
-            </span>
-            <span className="text-xs text-slate-500">
-              {question.marks_available} marks · {question.difficulty}
-            </span>
-          </div>
-          <p className="text-slate-800 leading-relaxed">{question.question_text}</p>
-        </div>
-
-        {/* Answer form — only show if not yet submitted */}
-        {!result && (
-          <form onSubmit={handleSubmit}>
-            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Your answer
-              </label>
-              <textarea
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Write your answer here..."
-                rows={6}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "The AI is marking your answer..." : "Submit answer"}
-            </Button>
-          </form>
-        )}
-
-        {/* Results — show after grading */}
-        {result && (
-          <div className="space-y-4">
-            {/* Score */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <p className="text-4xl font-bold text-slate-900 mb-1">
-                {result.score} / {result.maxScore}
-              </p>
-              <p className="text-lg text-slate-600">{result.percentage}%</p>
-
-              {/* Score colour bar */}
-              <div className="mt-3 h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    result.percentage >= 80 ? "bg-green-500" :
-                    result.percentage >= 50 ? "bg-amber-500" : "bg-red-500"
-                  }`}
-                  style={{ width: `${result.percentage}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Feedback */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-800 mb-2">AI Feedback</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">{result.feedback}</p>
-            </div>
-
-            {/* Strengths */}
-            {result.strengths.length > 0 && (
-              <div className="bg-green-50 rounded-xl border border-green-200 p-6">
-                <h3 className="font-semibold text-green-800 mb-2">✅ What you did well</h3>
-                <ul className="space-y-1">
-                  {result.strengths.map((s, i) => (
-                    <li key={i} className="text-green-700 text-sm">• {s}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Improvements */}
-            {result.improvements.length > 0 && (
-              <div className="bg-amber-50 rounded-xl border border-amber-200 p-6">
-                <h3 className="font-semibold text-amber-800 mb-2">📝 What to improve</h3>
-                <ul className="space-y-1">
-                  {result.improvements.map((imp, i) => (
-                    <li key={i} className="text-amber-700 text-sm">• {imp}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Model answer */}
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-800 mb-2">📖 Model Answer</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">{result.modelAnswer}</p>
-            </div>
-
-            <Button
-              onClick={() => { setResult(null); setAnswer(""); }}
-              variant="outline"
-              className="w-full"
-            >
-              Try again
-            </Button>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-```
-
-#### Today's target
-- [ ] Practice page renders when you go to `/practice/[any-question-id]`
-- [ ] The question text, topic, and marks are displayed correctly
-- [ ] Answer textarea works
-
----
-
-### Day 19 — Build the Grading API Route
-
-**Goal:** The backend that receives a student's answer, sends it to Gemini with the marking scheme, and returns a score and feedback.
-
-Create `app/api/grade/route.ts`:
-
-```typescript
-import { NextResponse } from "next/server";
-import { geminiFlash } from "@/lib/gemini";
-import { createServerClient } from "@/lib/supabase";
-
-export async function POST(request: Request) {
-  try {
-    const {
-      questionId,
-      questionText,
-      markingScheme,
-      maxMarks,
-      answerText,
-    } = await request.json();
-
-    if (!questionText || !answerText || !maxMarks) {
-      return NextResponse.json({ error: "Missing fields." }, { status: 400 });
-    }
-
-    const prompt = `You are an experienced Cambridge examiner marking a student's answer.
-
-QUESTION:
-${questionText}
-
-MARKING SCHEME / EXPECTED ANSWER:
-${markingScheme || "No marking scheme available. Use your knowledge of Cambridge standards for this type of question."}
-
-MAXIMUM MARKS: ${maxMarks}
-
-STUDENT'S ANSWER:
-${answerText}
-
-Grade this answer as a Cambridge examiner would. Return ONLY this JSON (no extra text):
-{
-  "score": 3,
-  "maxScore": ${maxMarks},
-  "percentage": 75,
-  "feedback": "One paragraph of overall feedback",
-  "strengths": ["Specific point they got right", "Another correct point"],
-  "improvements": ["What they missed", "What needs more detail"],
-  "modelAnswer": "The ideal complete answer a top student would write"
-}
-
-Be fair but rigorous. Award marks only for points that match the marking scheme.`;
-
-    const result = await geminiFlash.generateContent(prompt);
-    const text = result.response.text().trim();
-
-    // Parse the JSON response
-    let gradingResult;
-    try {
-      gradingResult = JSON.parse(text);
-    } catch {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        return NextResponse.json(
-          { error: "AI could not grade this answer. Please try again." },
-          { status: 422 }
-        );
-      }
-      gradingResult = JSON.parse(jsonMatch[0]);
-    }
-
-    // Calculate XP earned
-    const xpEarned = gradingResult.percentage === 100 ? 25 : 10;
-
-    // Save the attempt to the database
-    const supabase = createServerClient();
-    await supabase.from("attempts").insert({
-      user_id: "00000000-0000-0000-0000-000000000000", // placeholder — fix when auth is wired up
-      question_id: questionId,
-      answer_text: answerText,
-      score: gradingResult.score,
-      max_score: gradingResult.maxScore,
-      percentage: gradingResult.percentage,
-      feedback: gradingResult.feedback,
-      strengths: gradingResult.strengths,
-      improvements: gradingResult.improvements,
-      model_answer: gradingResult.modelAnswer,
-      xp_earned: xpEarned,
-    });
-
-    return NextResponse.json(gradingResult);
-
-  } catch (err) {
-    console.error("Grade error:", err);
-    return NextResponse.json({ error: "Grading failed." }, { status: 500 });
-  }
-}
-```
-
-#### Today's target
-- [ ] Submit a typed answer on the practice page and see a score
-- [ ] Feedback, strengths, improvements, and model answer are all shown
-- [ ] A row appears in the `attempts` table in Supabase
-
----
-
-### Days 20–22 — Add Image Upload for Handwritten Answers
-
-**Goal:** Allow students to photograph their handwritten answer and have Gemini read it.
-
-Key addition to the practice page — an image upload option:
-```typescript
-// Add a tab: "Type answer" vs "Upload image"
-// For image upload: use an <input type="file" accept="image/*">
-// Convert the image to base64 and send it to /api/grade
-// In the API route: send the base64 image as an inlineData part to Gemini
+### Day 3 Commit
+```bash
+git add . && git commit -m "day 3: student dashboard with XP bar and quick actions"
+git push
 ```
 
 ---
 
-### Days 23–24 — Award XP and Update the User's Level
+## Day 4 — Paper Upload Page (Frontend + File Handling)
+### Goal: Upload form exists and sends data correctly to the API route
 
-**Goal:** After a student submits an answer, their XP goes up and their level updates on the dashboard.
-
-Create a helper function that updates the profile XP in Supabase after each attempt. Then on the dashboard, the new XP appears next time they visit.
-
----
-
-### Days 25–27 — Buffer Days
-
-- Fix any AI grading bugs
-- Test with at least 10 different questions across 3 subjects
-- Evaluate: is the AI grading consistent? Does it handle wrong answers correctly?
-- Note 3 cases where the AI graded incorrectly — these go in your report's critical evaluation
-- Commit and push to GitHub
+**Time estimate: 3–4 hours**
 
 ---
 
-## Phase 4 — Syllabus Code Search
-### Week 7 | Days 28–32
+### Cursor Prompt — Upload Page
 
-**Goal of this phase:** A page where the student types a syllabus code and the AI tells them what subject it is and what topics it covers.
+> **Cursor prompt:**
+> "Create `app/upload/page.tsx` — a PDF upload page for a Next.js 14 app. Requirements:
+>
+> - Use `'use client'`
+> - Form fields: Subject Name (text), Syllabus Code (text, e.g. 0580), Year (text, optional), Level (select: IGCSE / O-Level / AS-Level / A-Level), PDF file input (accept='.pdf' only)
+> - On file selection, validate it is a PDF (file.type === 'application/pdf'). Show an error if not.
+> - Show the selected filename below the file input
+> - On submit, use FormData to POST to `/api/analyse` with all fields and the file
+> - Show loading state: 'Uploading and analysing with AI...'
+> - On success show: 'Done! X questions extracted from your paper.'
+> - On error show the error message in red
+> - After success show a link: 'View your questions →' linking to `/papers/[paperId]` using the returned paperId
+> - Include the Navbar
+> - Style: white card, max-w-2xl, centered
+> - Use Button and Input from `@/components/ui/`"
 
----
+### Day 4 Done Checklist
+- [ ] Upload page renders at `/upload`
+- [ ] File picker only accepts PDFs
+- [ ] Selecting a non-PDF shows an error immediately
+- [ ] Submitting shows loading state (the API route will return an error since we haven't built it yet — that is fine for today)
 
-### Day 28 — Build the Search API Route
-
-Create `app/api/search/route.ts`:
-
-```typescript
-import { NextResponse } from "next/server";
-import { geminiFlash } from "@/lib/gemini";
-
-export async function POST(request: Request) {
-  const { syllabusCode, year, paperNumber } = await request.json();
-
-  const prompt = `A student is looking for a Cambridge examination paper with syllabus code: ${syllabusCode}${year ? `, year ${year}` : ""}${paperNumber ? `, paper ${paperNumber}` : ""}.
-
-Based on your knowledge of Cambridge International Examinations:
-1. What subject does this code correspond to?
-2. What are the main topic areas covered?
-3. What level is it (IGCSE, O-Level, AS-Level, A-Level)?
-
-Return ONLY this JSON:
-{
-  "found": true,
-  "subjectName": "Mathematics",
-  "level": "IGCSE",
-  "description": "This is Cambridge IGCSE Mathematics (0580)...",
-  "suggestedTopics": ["Number", "Algebra", "Geometry", "Statistics"]
-}`;
-
-  const result = await geminiFlash.generateContent(prompt);
-  const text = result.response.text().trim();
-
-  try {
-    return NextResponse.json(JSON.parse(text));
-  } catch {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return NextResponse.json(JSON.parse(jsonMatch[0]));
-    return NextResponse.json({ found: false, description: "Could not identify this syllabus code.", suggestedTopics: [] });
-  }
-}
+### Day 4 Commit
+```bash
+git add . && git commit -m "day 4: PDF upload page frontend"
+git push
 ```
 
-### Days 29–32 — Build the Search Page Frontend and Test
+---
 
-Build `app/papers/search/page.tsx` with a search form, results display, and links to download sites (PapaCambridge, etc.).
+## Day 5 — Paper Analysis API Route (Gemini reads the PDF)
+### Goal: Uploading a real Cambridge PDF extracts questions and saves them to the database
+
+**Time estimate: 5–6 hours — this is the most technically complex day**
 
 ---
 
-## Phase 5 — Gamification
-### Weeks 8–9 | Days 33–42
+### Cursor Prompt — Analysis API Route
 
-**Goal of this phase:** Achievements, badges, and study streaks are displayed and awarded correctly.
+> **Cursor prompt:**
+> "Create `app/api/analyse/route.ts` — a Next.js API route that handles PDF upload and AI question extraction. Requirements:
+>
+> - Export an async `POST` function
+> - Read FormData from the request: file (File), subjectName, syllabusCode, year, level
+> - Validate all required fields are present
+> - Get the currently authenticated user using Supabase: call `createServerClient()` from `@/lib/supabase`, then `supabase.auth.getUser()`. Return 401 if no user.
+> - Convert the PDF file to base64: `const bytes = await file.arrayBuffer(); const base64 = Buffer.from(bytes).toString('base64')`
+> - Send to Gemini using `geminiFlash.generateContent()` with two parts: a text prompt and an inlineData part `{ mimeType: 'application/pdf', data: base64 }`
+> - The text prompt should instruct Gemini to extract all questions and return ONLY JSON in this format: `{ questions: [{ questionNumber, questionText, topic, marksAvailable, difficulty ('easy'|'medium'|'hard'), markingScheme }] }`
+> - Parse the JSON response. If parsing fails, try to extract JSON using a regex `/\{[\s\S]*\}/`
+> - Save a row to the `past_papers` table (uploaded_by = user.id, subject_name, syllabus_code, year as integer or null, level, question_count)
+> - Save all extracted questions to the `questions` table (paper_id from the saved paper)
+> - Return `{ success: true, paperId, questionCount }`
+> - Use try/catch and return appropriate error responses with status codes
+> - Import geminiFlash from `@/lib/gemini`, createServerClient from `@/lib/supabase`"
 
-### Days 33–35 — Achievement System
+---
 
-Build the logic that checks whether a badge should be awarded after each attempt:
+### How to Test This
 
-```typescript
-// After saving an attempt, check these conditions:
-// - First ever attempt → award "First Step" badge
-// - Score is 100% → award "Perfect Score" badge
-// - User now has 10+ attempts on the same topic → award "Topic Master" badge
-// - User is at Level 5 → award "Rising Star" badge
+1. Download a real Cambridge past paper PDF from https://papacambridge.com (pick Maths 0580 or Biology 0610 — they have clean text that Gemini reads well)
+2. Go to `localhost:3000/upload`
+3. Fill in the form and upload the PDF
+4. Watch the terminal in Cursor — you will see console logs
+5. After success, go to Supabase → Table Editor → `questions` — you should see rows
+
+**If Gemini returns an error or no JSON:**
+
+> **Cursor fix prompt:** "The Gemini API is returning this error: [paste the exact error from the terminal]. Fix the `app/api/analyse/route.ts` to handle this case."
+
+**If the questions look wrong (wrong topics, missing questions):**
+
+> **Cursor fix prompt:** "The AI is extracting questions but assigning the wrong topics. Update the prompt in `app/api/analyse/route.ts` to be more specific: tell Gemini to use precise Cambridge syllabus topic names rather than generic labels."
+
+### Day 5 Done Checklist
+- [ ] Uploading a Cambridge PDF shows a success message with question count
+- [ ] `questions` table in Supabase has rows with topics and mark values
+- [ ] `past_papers` table has a row linked to your user
+- [ ] Uploading a non-PDF or empty form returns an error
+
+### Day 5 Commit
+```bash
+git add . && git commit -m "day 5: Gemini PDF analysis API route - extracts and saves questions"
+git push
 ```
 
-### Days 36–38 — Study Streak Logic
+---
 
-Update the profile's `study_streak` after each attempt:
-- If `last_study_date` was yesterday → increment streak
-- If `last_study_date` was today → no change
-- If `last_study_date` was more than 1 day ago → reset streak to 1
-- Award streak bonus XP at 3 and 7 days
+## Day 6 — Papers List Page + Question Browser
+### Goal: Student can see all their papers and browse questions by topic
 
-### Days 39–40 — Display Achievements on Dashboard
-
-Show earned badges on the dashboard using a grid. Show locked badges as grey padlocks.
-
-### Days 41–42 — Buffer Days
-
-Test the full gamification loop end to end. Fix any XP calculation bugs.
+**Time estimate: 4–5 hours**
 
 ---
 
-## Phase 6 — Final Polish, Testing, and Report Writing
-### Week 10 | Days 43–50
+### Cursor Prompt — Papers List
 
-### Day 43 — Landing Page
+> **Cursor prompt:**
+> "Create `app/papers/page.tsx` — a page that lists all past papers uploaded by the logged-in user. Requirements:
+>
+> - Fetch papers from Supabase `past_papers` table filtered by the logged-in user's id, ordered by created_at descending
+> - Display each paper as a card showing: subject_name, syllabus_code, level badge, year (if available), question_count, created_at formatted as readable date
+> - Each card links to `/papers/[id]`
+> - If no papers yet, show an empty state: 'No papers yet' with a link to /upload
+> - Include the Navbar
+> - Use supabase client from `@/lib/supabase`"
 
-Build `app/page.tsx` — a public homepage that describes the app and links to sign up and sign in. This is what non-logged-in users see.
+### Cursor Prompt — Paper Detail (Question List)
 
-### Day 44 — Responsive Design Check
+> **Cursor prompt:**
+> "Create `app/papers/[id]/page.tsx` — a page showing all questions for a specific past paper. Requirements:
+>
+> - Read the paper id from `params.id`
+> - Fetch the paper details from `past_papers` and all questions from `questions` table where paper_id matches
+> - Show paper title (subject_name + year + syllabus_code) at the top
+> - Show filter buttons to filter by topic (extract unique topics from questions array using a Set) and by difficulty (easy / medium / hard)
+> - Display each question as a card showing: question number, first 150 characters of question text (truncated with ...), topic badge, marks badge, difficulty badge (green/amber/red), and a 'Practice →' button linking to `/practice/[question.id]`
+> - Filtering is done client-side using useState — do not re-fetch
+> - Include the Navbar"
 
-Open the app on your phone or use browser DevTools (F12 → phone icon). Fix any layout issues that appear on small screens.
+### Day 6 Done Checklist
+- [ ] `/papers` shows a list of your uploaded papers
+- [ ] Clicking a paper shows its questions
+- [ ] Topic and difficulty filters work without reloading the page
+- [ ] 'Practice →' button appears on each question
 
-### Day 45 — Formal Testing
-
-Write down and execute at least 15 test cases. Format them as a table:
-
-| Test ID | What I tested | Expected result | Actual result | Pass/Fail |
-|---|---|---|---|---|
-| T01 | Sign up with valid email and password | Account created, redirected to dashboard | Account created, redirected to dashboard | Pass |
-| T02 | Upload a valid Cambridge PDF | Questions extracted and displayed | ... | ... |
-
-### Day 46 — AI Grading Accuracy Evaluation
-
-Take 5 questions from a paper you have the official mark scheme for. Submit the model answer, a partially correct answer, and a blank answer. Record the AI's scores. Compare to what you would expect. Write up any discrepancies — this is your critical evaluation for the report.
-
-### Day 47 — Deploy to Vercel
-
-1. Push all your code to GitHub
-2. Go to https://vercel.com and sign in with GitHub
-3. Click **New Project** → import your `studyai` repository
-4. Add your environment variables in Vercel's **Environment Variables** section
-5. Click **Deploy**
-6. Your app is now live at `your-project.vercel.app`
-
-### Days 48–50 — Report and Poster Writing
-
-By this point you have a working application and test results. Use the report structure from the README:
-
-- Write the implementation chapter based on the decisions you made and the problems you solved
-- Write the testing chapter using your test table from Day 45
-- Write the critical reflection using your AI grading evaluation from Day 46
-- Start the literature review using the references in the README
+### Day 6 Commit
+```bash
+git add . && git commit -m "day 6: papers list and question browser with filters"
+git push
+```
 
 ---
 
-## Quick Reference: What to Do When Things Break
+## Day 7 — Practice Mode (Answer + AI Grading)
+### Goal: Student submits an answer and gets a score and feedback from Gemini
 
-| Problem | Most Likely Cause | Fix |
+**Time estimate: 5–6 hours**
+
+---
+
+### Cursor Prompt — Practice Page
+
+> **Cursor prompt:**
+> "Create `app/practice/[id]/page.tsx` — a full practice/grading page. Requirements:
+>
+> - Read question id from `params.id`
+> - Fetch the question from Supabase `questions` table
+> - Show the question text prominently, with topic badge and marks
+> - Show two tabs: 'Type answer' and 'Upload image' (use useState to switch between them)
+> - Type answer tab: a large textarea
+> - Upload image tab: a file input accepting image/* only. Show a preview of the selected image using URL.createObjectURL
+> - Submit button: 'Submit for AI grading'
+> - On submit, POST to `/api/grade` with: questionId, questionText, markingScheme, maxMarks, answerText (or imageBase64 if image was uploaded — convert using FileReader)
+> - Show a loading state: 'The AI is marking your answer...'
+> - After response, show:
+>   - Score as a large number: '7 / 10 marks (70%)'
+>   - A progress bar coloured green (>=80%), amber (50-79%), or red (<50%)
+>   - A paragraph of overall feedback
+>   - A green box: 'What you did well' listing strengths as bullet points
+>   - An amber box: 'What to improve' listing improvements as bullet points
+>   - A slate box: 'Model Answer' with the ideal response
+>   - A 'Try again' button that resets the form
+>   - A 'Next question' button (links back to the paper)
+> - Show XP earned after grading: '+10 XP earned!' (or +25 if 100%)
+> - Use the Navbar"
+
+---
+
+### Cursor Prompt — Grading API Route
+
+> **Cursor prompt:**
+> "Create `app/api/grade/route.ts` — a Next.js API route for AI answer grading. Requirements:
+>
+> - Export async POST function
+> - Read JSON body: questionId, questionText, markingScheme, maxMarks, answerText, imageBase64 (optional)
+> - Get the authenticated user from Supabase (return 401 if not logged in)
+> - Build a Gemini prompt that acts as a Cambridge examiner: provides the question, marking scheme (or 'not available' if null), max marks, and student answer
+> - Instruct Gemini to return ONLY this JSON: `{ score, maxScore, percentage, feedback, strengths: string[], improvements: string[], modelAnswer }`
+> - If imageBase64 is provided, include it as an inlineData part with mimeType 'image/jpeg' alongside the text prompt
+> - Parse the JSON response with fallback regex
+> - Calculate xpEarned: 25 if percentage === 100, else 10
+> - Save the attempt to the `attempts` table
+> - Update the user's XP in the `profiles` table using Supabase: increment xp by xpEarned, recalculate level as Math.floor((currentXp + xpEarned) / 500) + 1
+> - Update last_study_date to today. If last_study_date was yesterday, increment study_streak. If it was more than 1 day ago, reset study_streak to 1.
+> - Return the grading result JSON including xpEarned"
+
+### Day 7 Done Checklist
+- [ ] Practice page shows the question and two tabs
+- [ ] Submitting a typed answer returns AI feedback
+- [ ] Score, feedback, strengths, improvements, and model answer all display
+- [ ] XP earned message appears
+- [ ] Check Supabase `attempts` table — a new row appears
+- [ ] Check Supabase `profiles` table — XP value increased
+
+### Day 7 Commit
+```bash
+git add . && git commit -m "day 7: practice mode with AI grading, XP award, streak tracking"
+git push
+```
+
+---
+
+## Day 8 — Syllabus Code Search Page
+### Goal: Student types a syllabus code and gets subject info and download links
+
+**Time estimate: 3–4 hours**
+
+---
+
+### Cursor Prompt — Search API Route
+
+> **Cursor prompt:**
+> "Create `app/api/search/route.ts` — a POST API route. Read JSON body: syllabusCode, year (optional), paperNumber (optional). Build a Gemini prompt asking it to identify the Cambridge subject for this syllabus code, list its main topic areas, the exam level (IGCSE/O-Level/A-Level/AS-Level), and where to find past papers. Return ONLY JSON: `{ found: boolean, subjectName, level, description, suggestedTopics: string[] }`. Parse and return the response."
+
+### Cursor Prompt — Search Page
+
+> **Cursor prompt:**
+> "Create `app/papers/search/page.tsx` — a syllabus code search page. Requirements:
+>
+> - Three inputs: Syllabus Code (required), Year (optional), Paper Number (optional)
+> - A 'Search with AI' button that POSTs to `/api/search`
+> - Show loading state while waiting
+> - On result, show:
+>   - Subject name and level as a heading
+>   - A description paragraph
+>   - Topic tags as badge pills
+>   - A 'Where to find this paper' section with 3 clickable links: PapaCambridge (https://papacambridge.com), GCE Guide (https://papers.gceguide.com), Cambridge website (https://www.cambridgeinternational.org)
+>   - A tip: 'Once downloaded, upload the PDF on the Upload page to extract questions'
+> - Show 8 example syllabus code buttons the student can click to pre-fill the input: 0580 (IGCSE Maths), 0625 (Physics), 0620 (Chemistry), 0610 (Biology), 0500 (English), 0478 (Computer Sci), 9709 (A-Level Maths), 9702 (A-Level Physics)
+> - Include the Navbar"
+
+### Day 8 Done Checklist
+- [ ] Search page loads at `/papers/search`
+- [ ] Entering `0580` and clicking Search returns subject info and topics
+- [ ] Example code buttons fill the input when clicked
+- [ ] Download links are present and open in a new tab
+
+### Day 8 Commit
+```bash
+git add . && git commit -m "day 8: syllabus code search with AI subject identification"
+git push
+```
+
+---
+
+## Day 9 — Achievements + Badges
+### Goal: Badges are awarded automatically after qualifying actions; shown on dashboard
+
+**Time estimate: 4–5 hours**
+
+---
+
+### Cursor Prompt — Achievement Logic Utility
+
+> **Cursor prompt:**
+> "Create `lib/achievements.ts` — a server-side utility function `checkAndAwardAchievements(userId: string, supabase: any)`. It should:
+>
+> - Query the `attempts` table to count total attempts for this user
+> - Check if any attempt has percentage === 100
+> - Query unique topics the user has attempted (group by question topic via joins)
+> - Query the user's current level from `profiles`
+> - Query already-awarded badges from `achievements` table
+> - For each badge condition not yet met, insert a row into `achievements`:
+>   - 'first_attempt': awarded when total attempts >= 1, icon 🎯
+>   - 'perfect_score': awarded when any attempt has percentage = 100, icon ⭐
+>   - 'streak_3': awarded when study_streak >= 3, icon 🔥
+>   - 'streak_7': awarded when study_streak >= 7, icon 🏆
+>   - 'topic_master': awarded when any topic has >= 10 attempts, icon 🎓
+>   - 'level_5': awarded when level >= 5, icon 🌟
+>   - 'level_10': awarded when level >= 10, icon 👑
+> - Return an array of any newly awarded badge names so the frontend can show a congratulations message"
+
+---
+
+### Wire Achievement Check into the Grade Route
+
+> **Cursor prompt:**
+> "Update `app/api/grade/route.ts` to call `checkAndAwardAchievements(user.id, supabase)` after saving the attempt and updating XP. Add the returned `newBadges` array to the API response so the frontend can display a 'You earned a badge!' message."
+
+---
+
+### Update Dashboard to Show Badges
+
+> **Cursor prompt:**
+> "Update `app/dashboard/page.tsx` to:
+> - Also fetch achievements from the `achievements` table for the current user
+> - Show an 'Achievements' section with a grid of earned badges
+> - Each badge is a rounded box showing the badge_icon (large emoji) and badge_name below it
+> - Show locked badges (grey 🔒 emoji boxes) for badges not yet earned, up to 8 total
+> - Show a count: 'X / 8 badges earned'"
+
+### Day 9 Done Checklist
+- [ ] After answering your first question, refresh the dashboard — 'First Step' badge appears
+- [ ] If you score 100%, the 'Perfect Score' badge appears
+- [ ] Locked badges show as grey on the dashboard
+
+### Day 9 Commit
+```bash
+git add . && git commit -m "day 9: achievement and badge system with automatic award logic"
+git push
+```
+
+---
+
+## Day 10 — Landing Page + Route Protection
+### Goal: Public homepage for non-logged-in users; redirects if not logged in
+
+**Time estimate: 3–4 hours**
+
+---
+
+### Cursor Prompt — Landing Page
+
+> **Cursor prompt:**
+> "Create `app/page.tsx` — a public marketing landing page for StudyAI. Requirements:
+>
+> - Top navbar: logo left, 'Sign in' and 'Get started free' buttons right (linking to /auth/login and /auth/signup)
+> - Hero section: large heading 'Study smarter with AI-powered past paper practice', subheading describing the tool, two CTA buttons
+> - Features section: 4 feature cards — Search Papers, Upload PDF, AI Grading, Level Up System — each with an icon, title, and 2-sentence description
+> - How It Works section: numbered steps 1–4
+> - Subject tags section: a row of pill badges for common Cambridge subjects
+> - Footer with the logo and 'Built with Next.js, Supabase & Google Gemini'
+> - Do not use the Navbar component (this page has its own simpler nav)
+> - Style: white background, clean professional look, indigo-600 as accent colour"
+
+### Cursor Prompt — Middleware for Route Protection
+
+> **Cursor prompt:**
+> "Create `middleware.ts` at the root of the Next.js project. It should:
+> - Use `@supabase/ssr` to check if the user has a valid session
+> - If the user is not logged in and tries to access any `/dashboard`, `/papers`, `/upload`, or `/practice` route, redirect them to `/auth/login`
+> - If the user is logged in and tries to access `/auth/login` or `/auth/signup`, redirect them to `/dashboard`
+> - Allow all `/api/` routes to pass through without redirect
+> - Export a `config` with matcher: `['/((?!_next/static|_next/image|favicon.ico).*)']`"
+
+### Day 10 Done Checklist
+- [ ] Landing page looks professional at `localhost:3000`
+- [ ] Going to `/dashboard` while logged out redirects to `/auth/login`
+- [ ] Going to `/auth/login` while logged in redirects to `/dashboard`
+
+### Day 10 Commit
+```bash
+git add . && git commit -m "day 10: public landing page and route protection middleware"
+git push
+```
+
+---
+
+## Day 11 — UI Polish + Responsive Design
+### Goal: The app looks good on mobile. All pages are consistent and polished.
+
+**Time estimate: 4–5 hours**
+
+---
+
+### How to Check Responsiveness
+In your browser, press `F12` (or right-click → Inspect). Click the phone/tablet icon in the top-left of DevTools. This shows how the page looks on a mobile screen.
+
+Go through every page and note what looks broken. Then use Cursor to fix each one.
+
+### Cursor Prompt — Mobile Fixes
+
+> **Cursor prompt (repeat for each broken page):**
+> "The `/papers/[id]` page looks broken on mobile. The question cards overflow the screen width and the filter buttons stack messily. Fix the layout to be fully responsive using Tailwind's responsive prefixes (sm:, md:, lg:). The cards should stack vertically on mobile and the filter buttons should wrap."
+
+### Cursor Prompt — Loading States
+
+> **Cursor prompt:**
+> "Add a consistent loading skeleton to all data-fetching pages (`/dashboard`, `/papers`, `/papers/[id]`). While data is loading, show grey rounded placeholder blocks (animate-pulse) instead of blank screens. Use Tailwind's `animate-pulse` and `bg-slate-200 rounded` classes."
+
+### Cursor Prompt — Empty States
+
+> **Cursor prompt:**
+> "Add proper empty state illustrations to `/papers/page.tsx`. If the user has no papers, show a centred illustration (just a 📄 emoji large, a heading 'No papers yet', a description, and a 'Upload your first paper' button linking to /upload)."
+
+### Day 11 Done Checklist
+- [ ] Every page looks acceptable on a 375px wide mobile screen
+- [ ] Loading states show skeleton placeholders, not blank pages
+- [ ] Empty states have helpful messages and calls to action
+- [ ] No horizontal scrollbars appear on mobile
+
+### Day 11 Commit
+```bash
+git add . && git commit -m "day 11: responsive design, loading skeletons, empty states"
+git push
+```
+
+---
+
+## Day 12 — Testing Session
+### Goal: Document formal test results for the project report
+
+**Time estimate: 4–5 hours**
+
+This day is deliberately light on new code. You are generating evidence for your report's testing chapter.
+
+---
+
+### Step 1 — Create a test log file
+
+Create `TESTING.md` in your project root. Record every test you run:
+
+```markdown
+# Test Log
+
+| ID | Feature | Test Action | Expected Result | Actual Result | Pass/Fail | Notes |
+|---|---|---|---|---|---|---|
+| T01 | Sign up | Valid email + 8 char password | Account created, redirected to dashboard | | | |
+| T02 | Sign up | Password under 8 chars | Error message shown | | | |
+| T03 | Sign up | Email already in use | Error message shown | | | |
+| T04 | Log in | Correct credentials | Redirected to dashboard | | | |
+| T05 | Log in | Wrong password | Error message, no redirect | | | |
+| T06 | Upload | Valid Cambridge PDF | Questions extracted, success message | | | |
+| T07 | Upload | Non-PDF file | Error: must be PDF | | | |
+| T08 | Upload | Empty form | Validation error shown | | | |
+| T09 | Grade | Type a correct answer | Score > 0, feedback shown | | | |
+| T10 | Grade | Type a blank answer | Score 0, feedback shown | | | |
+| T11 | Grade | Upload a handwritten image | Score returned, image processed | | | |
+| T12 | XP | Answer any question | XP increments in Supabase | | | |
+| T13 | XP | Get 100% on a question | +25 XP awarded | | | |
+| T14 | Badge | First ever answer | 'First Step' badge appears on dashboard | | | |
+| T15 | Search | Enter code 0580 | Returns 'Mathematics' subject info | | | |
+| T16 | Middleware | Access /dashboard logged out | Redirected to /auth/login | | | |
+| T17 | Middleware | Access /auth/login logged in | Redirected to /dashboard | | | |
+```
+
+Execute each test. Fill in the Actual Result and Pass/Fail columns.
+
+---
+
+### Step 2 — AI Grading Accuracy Evaluation
+
+This is critical for your report's evaluation chapter.
+
+1. Pick one Cambridge paper you have the official mark scheme for
+2. Choose 5 questions
+3. For each question, submit three answers:
+   - The model answer from the official mark scheme
+   - A partially correct answer (missing 1–2 key points)
+   - A completely wrong answer
+
+Record in a table:
+
+```markdown
+# AI Grading Accuracy Evaluation
+
+| Q No. | Max Marks | Answer Type | Official Score | AI Score | Match? | Notes |
+|---|---|---|---|---|---|---|
+| 1a | 4 | Model answer | 4 | ? | ? | |
+| 1a | 4 | Partial answer | 2 | ? | ? | |
+| 1a | 4 | Wrong answer | 0 | ? | ? | |
+```
+
+This table goes directly into your report's critical evaluation section.
+
+---
+
+### Step 3 — Note bugs to fix tomorrow
+
+As you test, write down every bug you find. Do not fix them today — just document them.
+
+### Day 12 Done Checklist
+- [ ] `TESTING.md` has all 17 test cases filled in
+- [ ] AI grading evaluation table completed for at least 5 questions
+- [ ] Bug list documented
+
+### Day 12 Commit
+```bash
+git add . && git commit -m "day 12: formal test documentation and AI grading evaluation"
+git push
+```
+
+---
+
+## Day 13 — Bug Fixes + Error Handling
+### Goal: Fix all bugs from Day 12. Every edge case handled gracefully.
+
+**Time estimate: 4–5 hours**
+
+Work through your bug list from Day 12. For each bug, describe it to Cursor precisely:
+
+### How to Write Good Bug Fix Prompts
+
+**Bad prompt:** "Fix the upload page"
+
+**Good prompt:** "In `app/api/analyse/route.ts`, when the uploaded PDF is a scanned image (not text-based), Gemini returns an empty questions array. Handle this case by returning a 422 error with message: 'This PDF appears to be a scanned image. Try a text-based PDF, or use a version with selectable text.' Check if `questions.length === 0` after parsing and return the error."
+
+**For each bug, tell Cursor:**
+1. Which file has the problem
+2. What exact behaviour you see
+3. What behaviour you want instead
+
+---
+
+### Add Global Error Handling
+
+> **Cursor prompt:**
+> "Add a global error page to the Next.js app. Create `app/error.tsx` — a client component that accepts `error` and `reset` props. Show a friendly error message: 'Something went wrong', the error message in a code block, and a 'Try again' button that calls `reset()`. Style it as a centred card."
+
+> **Cursor prompt:**
+> "Add a 404 not found page. Create `app/not-found.tsx`. Show: a large '404', 'Page not found', and a link back to the dashboard."
+
+### Day 13 Done Checklist
+- [ ] All bugs from the Day 12 test log are fixed or documented as known limitations
+- [ ] Error page renders if something crashes
+- [ ] 404 page renders for unknown URLs
+- [ ] Re-run the 17 test cases — more should pass now
+
+### Day 13 Commit
+```bash
+git add . && git commit -m "day 13: bug fixes, error handling, 404 page"
+git push
+```
+
+---
+
+## Day 14 — Deploy to Vercel
+### Goal: The app is live on a public URL you can demonstrate
+
+**Time estimate: 2–3 hours**
+
+---
+
+### Step 1 — Make Sure Everything is Pushed
+
+```bash
+git add .
+git commit -m "day 14: pre-deployment cleanup"
+git push
+```
+
+### Step 2 — Deploy on Vercel
+
+1. Go to https://vercel.com and sign in with GitHub
+2. Click **Add New → Project**
+3. Find your `studyai` repository and click **Import**
+4. Under **Environment Variables**, add all 4 variables from your `.env.local`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `GEMINI_API_KEY`
+5. Set `NEXT_PUBLIC_APP_URL` to your Vercel URL (you can update this after deployment)
+6. Click **Deploy**
+
+Wait 2–3 minutes. Vercel will show a green checkmark and give you a URL like `studyai-abc123.vercel.app`.
+
+### Step 3 — Test the Live URL
+
+Open the Vercel URL. Sign up with a different email. Upload a paper. Grade a question. Confirm everything works on the live site.
+
+**If the live site has errors that didn't appear locally:**
+
+> **Cursor prompt:**
+> "My Next.js app works locally but after deploying to Vercel I get this error: [paste the Vercel build log error or the browser error]. Fix it."
+
+Common deployment-only issues:
+- Environment variables not set in Vercel → double-check all 4 are added
+- `pdf-parse` package issues → Cursor can suggest the `edge` runtime fix if needed
+- Build errors → paste the Vercel build log into Cursor chat
+
+### Step 4 — Update Supabase Auth Settings
+
+In Supabase, go to **Authentication → URL Configuration**. Add your Vercel URL to **Site URL** and **Redirect URLs**.
+
+### Day 14 Done Checklist
+- [ ] App is live at a public Vercel URL
+- [ ] Sign-up and log-in work on the live site
+- [ ] Uploading a PDF and grading a question works on live
+- [ ] Vercel URL noted somewhere safe for your viva demo
+
+### Day 14 Commit
+```bash
+git add . && git commit -m "day 14: production deployment on Vercel"
+git push
+```
+
+---
+
+## Day 15 — Final Polish + Demo Preparation
+### Goal: App is demo-ready. Documentation is complete. You are ready for the viva.
+
+**Time estimate: 3–4 hours**
+
+---
+
+### Morning (1–2 hours) — Last Polish Items
+
+**Add a progress chart to the dashboard:**
+
+> **Cursor prompt:**
+> "Add a simple progress summary section to `app/dashboard/page.tsx`. Fetch the user's attempts from Supabase and show:
+> - Total questions attempted (count)
+> - Average score percentage (average of all attempt percentages)
+> - Top 3 topics by number of attempts, shown as small stat cards
+> Do not add a chart library — use simple Tailwind bars for the topic stats (a div with bg-indigo-600 and percentage width)."
+
+**Add marks per topic breakdown to the paper detail page:**
+
+> **Cursor prompt:**
+> "Update `app/papers/[id]/page.tsx` to show a topic summary at the top: a list of unique topics in this paper, each showing how many questions are in that topic and the total marks available. Display as small horizontal stat rows."
+
+---
+
+### Afternoon (1–2 hours) — Demo Preparation
+
+Go through this demo script to practise for the viva:
+
+**1. Show the landing page**
+Explain what the app does in one sentence.
+
+**2. Sign in**
+Show the login page. Sign in with your test account.
+
+**3. Show the dashboard**
+Point out: level, XP bar, study streak, achievements, quick actions.
+
+**4. Upload a paper**
+Upload a Cambridge past paper you have prepared in advance. Watch the success message. Say: "The AI read every question and tagged it by topic."
+
+**5. Browse questions**
+Go to the paper. Show the topic filters. Click a filter. Explain: "This lets students focus on weak topics."
+
+**6. Attempt a question**
+Click Practice. Type an answer (have one ready that is partially correct). Submit. Show the score, feedback, strengths, and model answer. Point out the XP earned.
+
+**7. Show the database**
+Open Supabase in another tab. Show the `attempts` table — the row just saved. Show the `profiles` table — the XP increased.
+
+**8. Show an achievement**
+If a badge was just earned, show it on the dashboard.
+
+**9. Search a syllabus code**
+Go to Search. Type `0580`. Show the AI response.
+
+---
+
+### Final Commit
+
+```bash
+git add .
+git commit -m "day 15: final polish, demo preparation, project complete"
+git push
+```
+
+---
+
+## Quick Cursor Prompt Reference Card
+
+Save these — they are the prompts you will use most often.
+
+| Situation | What to type in Cursor |
+|---|---|
+| Something is not working | "I see this error: [paste exact error]. Fix it." |
+| Page looks wrong on mobile | "Make this component fully responsive for mobile screens using Tailwind sm:/md: prefixes." |
+| You want to understand code | "Explain this code to me line by line in plain English." |
+| TypeScript is showing a red underline | "Fix this TypeScript error: [paste the underlined code and error message]." |
+| A feature needs adding | "Add [feature] to this file. Here is the current code: [paste file]." |
+| Supabase query is not working | "This Supabase query is returning null instead of data: [paste query]. Fix it." |
+| The AI is returning bad JSON | "Gemini is returning this response instead of valid JSON: [paste response]. Update the prompt and parsing logic to handle this." |
+
+---
+
+## Summary Timeline
+
+| Day | Phase | Key Deliverable |
 |---|---|---|
-| `npm run dev` crashes immediately | Syntax error in a file you just edited | Read the error message — it tells you the filename and line number |
-| "Cannot find module '@/lib/supabase'" | File doesn't exist or is misnamed | Check the file exists at exactly `lib/supabase.ts` |
-| Supabase "Invalid API key" error | Wrong key in `.env.local`, or a space in the value | Copy the key again from Supabase settings. No spaces before or after `=` |
-| AI returns garbled text instead of JSON | Gemini added text around the JSON | The route's JSON parsing fallback should catch this. If not, log the raw response and add better parsing |
-| "Not authorised" when reading from database | Row Level Security is blocking you | Make sure the user is logged in before querying. Check your RLS policies in Supabase |
-| Page shows blank / white screen | JavaScript error in the component | Open browser DevTools (F12) → Console tab — the error is shown there |
-| `hydration error` in the console | A component is trying to use browser APIs on the server | Add `"use client"` at the top of the file |
-
----
-
-## Daily Habit
-
-Every time you sit down to work, do these three things before you write a single line of code:
-
-1. `git pull` — get the latest version of your code (important if you work on multiple computers)
-2. `npm run dev` — start the development server
-3. Read yesterday's code for 5 minutes — remind yourself where you left off
-
-Every time you finish a session, do:
-
-1. `git add .`
-2. `git commit -m "describe what you just built"`
-3. `git push`
-
-This means you can always go back to a working version if you break something.
+| Day 1 | Setup | Project created, database live, API keys configured |
+| Day 2 | Foundation | UI components, Navbar, auth pages |
+| Day 3 | Foundation | Student dashboard with XP and level |
+| Day 4 | Papers | Upload page frontend |
+| Day 5 | Papers | Gemini reads PDF → questions saved to database |
+| Day 6 | Papers | Papers list + question browser with filters |
+| Day 7 | Practice | AI grading, feedback, XP award, streak tracking |
+| Day 8 | Search | Syllabus code search |
+| Day 9 | Gamification | Badges and achievements |
+| Day 10 | Polish | Landing page + route protection middleware |
+| Day 11 | Polish | Mobile responsiveness, loading states, empty states |
+| Day 12 | Testing | Formal test log + AI grading accuracy evaluation |
+| Day 13 | Fixes | Bug fixes, error pages |
+| Day 14 | Deploy | Live on Vercel |
+| Day 15 | Demo | Final polish + viva preparation |
