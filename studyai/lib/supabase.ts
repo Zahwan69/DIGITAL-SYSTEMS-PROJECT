@@ -1,13 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Browser-safe client (uses publishable/anon key)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Server-only helper for API routes (uses secret/service key)
-export function createServerClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(supabaseUrl, serviceRoleKey);
-}
+/**
+ * Browser client for Client Components. Uses cookie-based session storage so it
+ * stays in sync with middleware and server (plain createClient() uses
+ * localStorage, which middleware never sees — logins appear to "fail").
+ */
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);

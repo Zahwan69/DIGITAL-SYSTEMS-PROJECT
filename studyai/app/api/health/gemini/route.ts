@@ -1,11 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-const CANDIDATE_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash-latest",
-];
+import { getGeminiCandidateModelNames } from "@/lib/gemini";
 
 export async function GET() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -22,8 +18,9 @@ export async function GET() {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const errors: string[] = [];
+  const models = getGeminiCandidateModelNames();
 
-  for (const modelName of CANDIDATE_MODELS) {
+  for (const modelName of models) {
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent("Reply with exactly: OK");
@@ -46,8 +43,9 @@ export async function GET() {
     {
       ok: false,
       message: "Gemini connection failed for all test models.",
-      triedModels: CANDIDATE_MODELS,
-      error: errors[errors.length - 1] ?? "No error details available",
+      triedModels: models,
+      errors,
+      error: errors.join(" | "),
     },
     { status: 500 }
   );

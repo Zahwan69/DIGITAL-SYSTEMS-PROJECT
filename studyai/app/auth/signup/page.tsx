@@ -8,6 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 
+function mapSignupError(message: string) {
+  const lower = message.toLowerCase();
+  if (lower.includes("rate limit")) {
+    return "Too many signup attempts right now. Please wait a few minutes and try again.";
+  }
+  if (lower.includes("already registered") || lower.includes("already been registered")) {
+    return "This email is already registered. Try logging in instead.";
+  }
+  return message;
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -40,7 +51,7 @@ export default function SignupPage() {
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(mapSignupError(signUpError.message));
       setLoading(false);
       return;
     }

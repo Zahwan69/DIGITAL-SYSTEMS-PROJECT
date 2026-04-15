@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/lib/supabase";
 
 type AnalyseResponse = {
   paperId?: string;
@@ -81,8 +82,20 @@ export default function UploadPage() {
     });
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        setError("Please sign in again before uploading.");
+        return;
+      }
+
       const response = await fetch("/api/analyse", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: formData,
       });
 
