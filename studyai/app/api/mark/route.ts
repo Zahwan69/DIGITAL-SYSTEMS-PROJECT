@@ -91,7 +91,7 @@ export async function POST(request: Request) {
 
     const { data: question, error: questionError } = await supabaseAdmin
       .from("questions")
-      .select("id, question_text, marks_available, marking_scheme")
+      .select("id, paper_id, question_text, marks_available, marking_scheme")
       .eq("id", questionId)
       .single();
 
@@ -161,6 +161,33 @@ Return ONLY valid JSON with no markdown fences:
       newStreak = 1;
     }
 
+    const { data: paperQuestions, error: paperQuestionsError } = await supabaseAdmin
+      .from("questions")
+      .select("id")
+      .eq("paper_id", question.paper_id);
+    if (paperQuestionsError || !paperQuestions) {
+      return NextResponse.json(
+        { error: paperQuestionsError?.message ?? "Failed to load paper questions." },
+        { status: 500 }
+      );
+    }
+
+    const paperQuestionIds = paperQuestions.map((q) => q.id);
+    let answeredBeforeCount = 0;
+    if (paperQuestionIds.length > 0) {
+      const { data: attemptsBefore, error: attemptsBeforeError } = await supabaseAdmin
+        .from("attempts")
+        .select("question_id")
+        .eq("user_id", user.id)
+        .in("question_id", paperQuestionIds);
+
+      if (attemptsBeforeError) {
+        return NextResponse.json({ error: attemptsBeforeError.message }, { status: 500 });
+      }
+
+      answeredBeforeCount = new Set((attemptsBefore ?? []).map((a) => a.question_id)).size;
+    }
+
     const { data: attempt, error: attemptError } = await supabaseAdmin
       .from("attempts")
       .insert({
@@ -186,6 +213,37 @@ Return ONLY valid JSON with no markdown fences:
       );
     }
 
+    let paperCompleted = false;
+    const totalQuestionsInPaper = paperQuestionIds.length;
+    if (totalQuestionsInPaper > 0) {
+      const { data: attemptsAfter, error: attemptsAfterError } = await supabaseAdmin
+        .from("attempts")
+        .select("question_id")
+        .eq("user_id", user.id)
+        .in("question_id", paperQuestionIds);
+
+      if (attemptsAfterError) {
+        return NextResponse.json({ error: attemptsAfterError.message }, { status: 500 });
+      }
+
+      const answeredAfterCount = new Set((attemptsAfter ?? []).map((a) => a.question_id)).size;
+      paperCompleted =
+        answeredBeforeCount < totalQuestionsInPaper &&
+        answeredAfterCount === totalQuestionsInPaper;
+    }
+
+    if (paperCompleted) {
+      xpEarned += 100;
+      const { error: attemptUpdateError } = await supabaseAdmin
+        .from("attempts")
+        .update({ xp_earned: xpEarned })
+        .eq("id", attempt.id);
+
+      if (attemptUpdateError) {
+        return NextResponse.json({ error: attemptUpdateError.message }, { status: 500 });
+      }
+    }
+
     await supabaseAdmin
       .from("profiles")
       .update({
@@ -205,6 +263,7 @@ Return ONLY valid JSON with no markdown fences:
       modelAnswer: marking.model_answer,
       xpEarned,
       newStreak,
+      paperCompleted,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown server error";

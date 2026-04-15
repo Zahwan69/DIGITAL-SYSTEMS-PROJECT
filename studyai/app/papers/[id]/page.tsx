@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AnswerForm } from "@/components/AnswerForm";
+import type { MarkResult } from "@/components/AnswerForm";
 import { Navbar } from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,11 +31,43 @@ type Question = {
   marking_scheme: string | null;
 };
 
+type ResultsSummaryProps = {
+  results: Record<string, MarkResult>;
+  questions: Question[];
+};
+
 const difficultyColour: Record<string, string> = {
   easy: "bg-green-100 text-green-800",
   medium: "bg-yellow-100 text-yellow-800",
   hard: "bg-red-100 text-red-800",
 };
+
+function scoreColour(pct: number): string {
+  if (pct >= 80) return "text-green-700";
+  if (pct >= 50) return "text-yellow-700";
+  return "text-red-700";
+}
+
+function ResultsSummary({ results, questions }: ResultsSummaryProps) {
+  const answeredCount = Object.keys(results).length;
+  const entries = Object.values(results);
+  const totalScore = entries.reduce((sum, r) => sum + r.score, 0);
+  const totalMax = entries.reduce((sum, r) => sum + r.maxScore, 0);
+  const percentage = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
+  const totalXp = entries.reduce((sum, r) => sum + r.xpEarned, 0);
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className={`text-sm font-semibold ${scoreColour(percentage)}`}>
+        {totalScore}/{totalMax} · {percentage}%
+      </p>
+      <p className="text-sm font-semibold text-indigo-700">+{totalXp} total XP earned</p>
+      <p className="text-sm text-slate-600">
+        {answeredCount} of {questions.length} questions answered
+      </p>
+    </div>
+  );
+}
 
 export default function PaperPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +77,8 @@ export default function PaperPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<Record<string, MarkResult>>({});
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -86,6 +121,10 @@ export default function PaperPage() {
 
     void load();
   }, [id, router]);
+
+  function handleSubmitted(questionId: string, result: MarkResult) {
+    setResults((prev) => ({ ...prev, [questionId]: result }));
+  }
 
   if (loading) {
     return (
@@ -177,10 +216,39 @@ export default function PaperPage() {
                     </details>
                   )}
 
-                  <AnswerForm questionId={q.id} marksAvailable={q.marks_available} />
+                  <AnswerForm
+                    questionId={q.id}
+                    marksAvailable={q.marks_available}
+                    onSubmitted={(result) => handleSubmitted(q.id, result)}
+                    revealed={revealed}
+                    existingResult={results[q.id] ?? null}
+                  />
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {questions.length > 0 && (
+          <div className="sticky bottom-4 mt-6">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md">
+              {!revealed ? (
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm text-slate-600">
+                    {Object.keys(results).length} / {questions.length} answered
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRevealed(true)}
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                  >
+                    Finish & see results
+                  </button>
+                </div>
+              ) : (
+                <ResultsSummary results={results} questions={questions} />
+              )}
+            </div>
           </div>
         )}
       </main>
