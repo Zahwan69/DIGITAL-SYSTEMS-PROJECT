@@ -11,12 +11,12 @@ export interface Profile {
 
 export interface PastPaper {
   id: string;
-  user_id: string;
-  subject_code: string;
-  paper_name: string;
+  uploaded_by: string;
+  subject_name: string;
+  syllabus_code: string;
   year: number | null;
-  session: string | null;
-  file_url: string;
+  level: string;
+  question_count: number;
   created_at: string;
 }
 
@@ -26,7 +26,8 @@ export interface Question {
   question_number: string;
   question_text: string;
   topic: string | null;
-  marks: number;
+  marks_available: number;
+  difficulty: "easy" | "medium" | "hard";
   marking_scheme: string | null;
   created_at: string;
 }
@@ -35,24 +36,14 @@ export interface Attempt {
   id: string;
   user_id: string;
   question_id: string;
-  answer_text: string | null;
-  answer_image_url: string | null;
+  answer_text: string;
   score: number;
   max_score: number;
   percentage: number;
-  feedback: string | null;
+  feedback: string;
   strengths: string[];
   improvements: string[];
-  model_answer: string | null;
+  model_answer: string;
   xp_earned: number;
   created_at: string;
-}
-
-export interface Achievement {
-  id: string;
-  user_id: string;
-  badge_key: string;
-  title: string;
-  description: string | null;
-  earned_at: string;
 }
