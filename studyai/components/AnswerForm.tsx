@@ -46,6 +46,41 @@ export function AnswerForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [hints, setHints] = useState<string[]>([]);
+  const [hintLoading, setHintLoading] = useState(false);
+  const MAX_HINTS = 3;
+
+  async function handleGetHint() {
+    setHintLoading(true);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setHintLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/hint", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ questionId }),
+      });
+
+      const data = (await response.json()) as { hint?: string; error?: string };
+      if (data.hint) {
+        setHints((prev) => [...prev, data.hint!]);
+      }
+    } catch {
+      // silently fail — hints are optional, not critical
+    } finally {
+      setHintLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -180,6 +215,31 @@ export function AnswerForm({
         disabled={loading}
       />
 
+      {hints.length > 0 && (
+        <ol className="space-y-1 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+          {hints.map((hint, i) => (
+            <li key={i} className="text-xs text-indigo-800">
+              <span className="font-semibold">Hint {i + 1}:</span> {hint}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {!submitted && (
+        <button
+          type="button"
+          onClick={handleGetHint}
+          disabled={hintLoading || hints.length >= MAX_HINTS}
+          className="text-xs text-indigo-600 underline hover:text-indigo-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
+        >
+          {hintLoading
+            ? "Thinking..."
+            : hints.length >= MAX_HINTS
+              ? "No more hints available"
+              : `Get a hint (${MAX_HINTS - hints.length} remaining)`}
+        </button>
+      )}
+
       {error && <p className="text-xs text-red-700">{error}</p>}
 
       <div className="flex gap-2">
@@ -194,6 +254,7 @@ export function AnswerForm({
             setOpen(false);
             setAnswer("");
             setError(null);
+            setHints([]);
           }}
           disabled={loading}
         >
