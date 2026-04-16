@@ -42,6 +42,11 @@ const xpRules = [
 export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [stats, setStats] = useState<{
+    papersUploaded: number;
+    questionsAttempted: number;
+    bestScore: number | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -66,6 +71,33 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
+
+      const [papersResult, attemptsCountResult, bestScoreResult] = await Promise.all([
+        supabase
+          .from("past_papers")
+          .select("id", { count: "exact", head: true })
+          .eq("uploaded_by", user.id),
+        supabase
+          .from("attempts")
+          .select("question_id", { count: "exact", head: true })
+          .eq("user_id", user.id),
+        supabase
+          .from("attempts")
+          .select("percentage")
+          .eq("user_id", user.id)
+          .order("percentage", { ascending: false })
+          .limit(1),
+      ]);
+
+      setStats({
+        papersUploaded: papersResult.error ? 0 : papersResult.count ?? 0,
+        questionsAttempted: attemptsCountResult.error ? 0 : attemptsCountResult.count ?? 0,
+        bestScore:
+          bestScoreResult.error || !bestScoreResult.data?.[0]
+            ? null
+            : bestScoreResult.data[0].percentage,
+      });
+
       setProfile(profileData as Profile);
       setLoading(false);
     }
@@ -128,6 +160,34 @@ export default function DashboardPage() {
             <p className="text-sm font-medium text-slate-700">🔥 Study streak: {streak} day(s)</p>
           </CardContent>
         </Card>
+        <section className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              label: "Papers uploaded",
+              value: stats?.papersUploaded ?? 0,
+              suffix: "",
+            },
+            {
+              label: "Questions attempted",
+              value: stats?.questionsAttempted ?? 0,
+              suffix: "",
+            },
+            {
+              label: "Best score",
+              value: stats?.bestScore ?? null,
+              suffix: "%",
+            },
+          ].map((stat) => (
+            <Card key={stat.label}>
+              <CardContent className="pt-6">
+                <p className="text-3xl font-bold text-indigo-600">
+                  {stat.value !== null ? `${stat.value}${stat.suffix}` : "—"}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">{stat.label}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
         <section className="grid gap-4 md:grid-cols-3">
           {quickActions.map((action) => (
             <Link key={action.href} href={action.href} className="block">
