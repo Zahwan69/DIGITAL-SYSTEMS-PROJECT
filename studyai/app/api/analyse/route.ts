@@ -29,6 +29,33 @@ type LooseQuestion = {
   marking_scheme?: string | null;
 };
 
+const SYLLABUS_NAMES: Record<string, string> = {
+  "0417": "Information & Communication Technology",
+  "0450": "Business Studies",
+  "0478": "Computer Science",
+  "0500": "English - First Language",
+  "0510": "English as a Second Language",
+  "0522": "English Language",
+  "0580": "Mathematics",
+  "0606": "Additional Mathematics",
+  "0610": "Biology",
+  "0620": "Chemistry",
+  "0625": "Physics",
+  "0648": "Environmental Management",
+  "0654": "Co-ordinated Sciences",
+  "0680": "Environmental Management",
+  "0700": "First Language English",
+  "0990": "Economics",
+  "9700": "Biology (A-Level)",
+  "9701": "Chemistry (A-Level)",
+  "9702": "Physics (A-Level)",
+  "9706": "Accounting (A-Level)",
+  "9708": "Economics (A-Level)",
+  "9709": "Mathematics (A-Level)",
+  "9713": "Applied ICT (A-Level)",
+  "9093": "English Language (A-Level)",
+};
+
 function extractJsonObjectCandidate(input: string): string | null {
   const start = input.indexOf("{");
   if (start < 0) return null;
@@ -134,6 +161,9 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const syllabusCode = String(formData.get("syllabusCode") ?? "").trim();
+    const yearRaw = formData.get("year");
+    const year = yearRaw ? parseInt(String(yearRaw), 10) || null : null;
+    const level = String(formData.get("level") ?? "IGCSE").trim() || "IGCSE";
 
     const uploaded = formData.getAll("files");
     const files = uploaded.filter((value): value is File => value instanceof File);
@@ -217,9 +247,7 @@ Rules:
       const responseText = result.response.text();
       const extractedQuestions = parseQuestionsFromGemini(responseText);
 
-      const subjectName = `Syllabus ${syllabusCode}`;
-      const level = "IGCSE";
-      const year = null;
+      const subjectName = SYLLABUS_NAMES[syllabusCode] ?? `Syllabus ${syllabusCode}`;
 
       const { data: paperRow, error: paperError } = await supabaseAdmin
         .from("past_papers")

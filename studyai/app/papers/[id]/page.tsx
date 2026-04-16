@@ -31,6 +31,15 @@ type Question = {
   marking_scheme: string | null;
 };
 
+type PastAttempt = {
+  id: string;
+  score: number;
+  max_score: number;
+  percentage: number;
+  feedback: string;
+  created_at: string;
+};
+
 type ResultsSummaryProps = {
   results: Record<string, MarkResult>;
   questions: Question[];
@@ -79,6 +88,7 @@ export default function PaperPage() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, MarkResult>>({});
   const [revealed, setRevealed] = useState(false);
+  const [pastAttempts, setPastAttempts] = useState<Record<string, PastAttempt[]>>({});
 
   useEffect(() => {
     async function load() {
@@ -112,6 +122,26 @@ export default function PaperPage() {
         setError(questionError.message);
         setLoading(false);
         return;
+      }
+
+      if (questionData && questionData.length > 0) {
+        const questionIds = questionData.map((q) => q.id);
+        const { data: attemptsData } = await supabase
+          .from("attempts")
+          .select("id, question_id, score, max_score, percentage, feedback, created_at")
+          .eq("user_id", user.id)
+          .in("question_id", questionIds)
+          .order("created_at", { ascending: false });
+
+        if (attemptsData) {
+          const grouped: Record<string, PastAttempt[]> = {};
+          for (const attempt of attemptsData) {
+            const qid = attempt.question_id as string;
+            if (!grouped[qid]) grouped[qid] = [];
+            grouped[qid].push(attempt as PastAttempt);
+          }
+          setPastAttempts(grouped);
+        }
       }
 
       setPaper(paperData as Paper);
@@ -223,6 +253,31 @@ export default function PaperPage() {
                     revealed={revealed}
                     existingResult={results[q.id] ?? null}
                   />
+
+                  {(pastAttempts[q.id] ?? []).length > 0 && (
+                    <details className="mt-3 rounded-lg border border-slate-200">
+                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">
+                        Past attempts ({(pastAttempts[q.id] ?? []).length})
+                      </summary>
+                      <ul className="divide-y divide-slate-100 px-3 pb-3">
+                        {(pastAttempts[q.id] ?? []).map((attempt) => (
+                          <li key={attempt.id} className="py-2">
+                            <div className="flex items-center justify-between">
+                              <span className={`text-sm font-semibold ${scoreColour(attempt.percentage)}`}>
+                                {attempt.score}/{attempt.max_score} · {attempt.percentage}%
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {new Date(attempt.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-slate-600 line-clamp-2">
+                              {attempt.feedback}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </CardContent>
               </Card>
             ))}

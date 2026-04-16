@@ -17,6 +17,8 @@ type AnalyseResponse = {
 
 export default function UploadPage() {
   const [syllabusCode, setSyllabusCode] = useState("");
+  const [year, setYear] = useState("");
+  const [level, setLevel] = useState("IGCSE");
   const [files, setFiles] = useState<File[]>([]);
   const [selectedFilenames, setSelectedFilenames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,6 +79,8 @@ export default function UploadPage() {
 
     const formData = new FormData();
     formData.append("syllabusCode", syllabusCode);
+    if (year) formData.append("year", year);
+    formData.append("level", level);
     files.forEach((file) => {
       formData.append("files", file);
     });
@@ -151,6 +155,37 @@ export default function UploadPage() {
                 placeholder="0580"
                 required
               />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="year">
+                Year <span className="text-slate-400">(optional)</span>
+              </label>
+              <Input
+                id="year"
+                type="number"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                placeholder="e.g. 2023"
+                min={2000}
+                max={2030}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="level">
+                Level <span className="text-slate-400">(optional)</span>
+              </label>
+              <select
+                id="level"
+                value={level}
+                onChange={(e) => setLevel(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="IGCSE">IGCSE</option>
+                <option value="AS-Level">AS-Level</option>
+                <option value="A-Level">A-Level</option>
+              </select>
             </div>
 
             <div>
