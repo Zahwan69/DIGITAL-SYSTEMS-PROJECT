@@ -1,110 +1,93 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { GraduationCap, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
-import { supabase } from "@/lib/supabase";
+import { HorizontalShellNav } from "@/components/HorizontalShellNav";
+import { SignOutButton } from "@/components/SignOutButton";
+import { SubjectSwitcher } from "@/components/SubjectSwitcher";
+import { BRAND_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/papers", label: "My Papers" },
-  { href: "/upload", label: "Upload" },
-  { href: "/papers/search", label: "Search" },
-];
+type NavbarProps = {
+  role: string | null;
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
+};
 
-export function Navbar() {
+export function Navbar({ role, sidebarOpen, onToggleSidebar }: NavbarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-
-  async function handleSignOut() {
-    setSigningOut(true);
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-    router.refresh();
-  }
+  const teacherSubjectBar = role === "teacher" && pathname.startsWith("/teacher");
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="text-xl">⚡</span>
-          <span className="text-lg font-bold text-indigo-600">StudyAI</span>
-        </Link>
-
-        <nav className="hidden items-center gap-2 md:flex">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900",
-                  isActive && "bg-indigo-50 text-indigo-700"
-                )}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="hidden md:block">
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-50"
-          >
-            {signingOut ? "Signing out..." : "Sign out"}
-          </button>
-        </div>
-
+    <header className="relative z-50 flex h-14 shrink-0 items-stretch border-b border-border bg-surface md:px-6">
+      <div className="flex w-11 shrink-0 items-center justify-center border-r border-border bg-surface-alt">
         <button
           type="button"
-          className="inline-flex items-center justify-center rounded-md p-2 text-slate-700 hover:bg-slate-100 md:hidden"
-          onClick={() => setMobileOpen((prev) => !prev)}
-          aria-label="Toggle navigation menu"
+          className="flex h-9 w-9 cursor-pointer select-none items-center justify-center rounded-md text-text transition-colors duration-200 hover:bg-surface"
+          onClick={onToggleSidebar}
+          aria-expanded={sidebarOpen}
+          aria-controls="app-sidebar-panel"
+          aria-label={sidebarOpen ? "Hide navigation panel" : "Show navigation panel"}
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {sidebarOpen ? (
+            <PanelLeftClose className="h-5 w-5" aria-hidden />
+          ) : (
+            <PanelLeftOpen className="h-5 w-5" aria-hidden />
+          )}
         </button>
       </div>
 
-      {mobileOpen && (
-        <div className="border-t border-slate-200 bg-white md:hidden">
-          <nav className="space-y-1 px-4 py-3">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "block rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900",
-                    isActive && "bg-indigo-50 text-indigo-700"
-                  )}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-            <button
-              type="button"
-              onClick={handleSignOut}
-              disabled={signingOut}
-              className="mt-2 w-full rounded-md bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-50"
-            >
-              {signingOut ? "Signing out..." : "Sign out"}
-            </button>
-          </nav>
+      <div className="flex min-w-0 flex-1 items-center gap-2 px-3 md:gap-3 md:px-0">
+        <Link
+          href="/dashboard"
+          className="flex min-w-0 max-w-[min(52vw,14rem)] shrink-0 items-center gap-2 rounded-md outline-none ring-offset-2 ring-offset-surface transition-opacity duration-200 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-accent sm:max-w-xs md:max-w-sm"
+        >
+          <GraduationCap className="h-6 w-6 shrink-0 text-accent md:h-7 md:w-7" aria-hidden />
+          <span className="min-w-0 leading-tight">
+            <span className="font-serif text-base font-semibold text-text md:text-lg">{BRAND_NAME}</span>
+            <span className="mt-0.5 hidden text-[10px] font-medium uppercase tracking-wide text-text-muted sm:block">
+              Teachers & students
+            </span>
+          </span>
+        </Link>
+
+        {teacherSubjectBar ? (
+          <Suspense
+            fallback={
+              <div className="h-9 min-w-0 max-w-40 shrink animate-pulse rounded-md bg-surface-alt" aria-hidden />
+            }
+          >
+            <div className="min-w-0 max-w-[min(12rem,42vw)] shrink sm:max-w-52 lg:max-w-60">
+              <SubjectSwitcher />
+            </div>
+          </Suspense>
+        ) : null}
+
+        <div className="hidden min-w-0 flex-1 md:flex">
+          <HorizontalShellNav role={role} />
         </div>
-      )}
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <SignOutButton variant="icon" className="md:hidden" />
+          {role ? (
+            <span
+              className={cn(
+                "hidden rounded-full border border-border px-2 py-0.5 text-xs font-medium text-text-muted sm:inline-block",
+                role === "teacher" && "border-accent-soft bg-accent-soft text-accent",
+                role === "admin" && "border-border-strong bg-surface text-text"
+              )}
+            >
+              {role === "admin" ? "Admin" : role === "teacher" ? "Teacher" : "Student"}
+            </span>
+          ) : null}
+          <div className="hidden md:block">
+            <SignOutButton />
+          </div>
+        </div>
+      </div>
     </header>
   );
 }

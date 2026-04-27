@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { Navbar } from "@/components/Navbar";
+import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -118,30 +118,29 @@ export default function UploadPage() {
   };
 
   return (
-    <>
-      <Navbar />
-      <main className="mx-auto flex w-full max-w-2xl flex-1 items-start px-4 py-6 sm:px-6">
-        <div className="w-full rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-900">Upload a Past Paper</h1>
-          <p className="mt-1 text-sm text-slate-600">
+    <AppShell>
+      <div className="mx-auto flex w-full max-w-2xl flex-1 items-start">
+        <div className="w-full rounded-lg border border-border bg-surface p-5 sm:p-6">
+          <h1 className="font-serif text-2xl font-semibold text-text">Upload a Past Paper</h1>
+          <p className="mt-1 text-sm text-text-muted">
             Enter a syllabus code, select up to 10 PDFs, and let AI extract the questions.
           </p>
 
           {error && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mt-4 rounded-lg border border-danger/30 bg-[#f3d3d3]/40 px-3 py-2 text-sm text-danger">
               {error}
             </div>
           )}
 
           {successMessage && (
-            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            <div className="mt-4 rounded-lg border border-success/30 bg-[#e6f0d6]/50 px-3 py-2 text-sm text-success">
               {successMessage}
             </div>
           )}
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="syllabusCode">
+              <label className="mb-1 block text-sm font-medium text-text" htmlFor="syllabusCode">
                 Syllabus Code
               </label>
               <Input
@@ -154,13 +153,13 @@ export default function UploadPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="files">
+              <label className="mb-1 block text-sm font-medium text-text" htmlFor="files">
                 PDF Files
               </label>
               <Input id="files" type="file" accept=".pdf" multiple onChange={handleFileChange} required />
-              <p className="mt-2 text-xs text-slate-500">You can upload up to 10 PDF files.</p>
+              <p className="mt-2 text-xs text-text-muted">You can upload up to 10 PDF files.</p>
               {selectedFilenames.length > 0 && (
-                <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-slate-600">
+                <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-text-muted">
                   {selectedFilenames.map((name) => (
                     <li key={name}>{name}</li>
                   ))}
@@ -177,14 +176,14 @@ export default function UploadPage() {
             <div className="mt-4">
               <Link
                 href={viewQuestionsHref}
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                className="text-sm font-medium text-accent hover:underline"
               >
                 View your questions →
               </Link>
             </div>
           )}
         </div>
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }
