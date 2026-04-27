@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-import { generateGeminiContent } from "@/lib/gemini";
+import { authenticateRequest } from "@/lib/api-auth";
+import { markAnswer } from "@/lib/gemini";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type MarkingResult = {
@@ -55,38 +55,29 @@ function parseMarkingResult(raw: string): MarkingResult {
 
 export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization");
-    const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const supabaseAuth = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser(token);
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    const auth = await authenticateRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.message }, { status: auth.status });
     }
 
     const body = (await request.json()) as {
       questionId?: string;
       answerText?: string;
+      answerImagePath?: string;
     };
 
     const questionId = body.questionId?.trim();
-    const answerText = body.answerText?.trim();
+    const answerText = body.answerText?.trim() ?? "";
+    const answerImagePath = body.answerImagePath?.trim() || null;
 
     if (!questionId) {
       return NextResponse.json({ error: "questionId is required." }, { status: 400 });
     }
-    if (!answerText || answerText.length === 0) {
-      return NextResponse.json({ error: "answerText is required." }, { status: 400 });
+    if (!answerText && !answerImagePath) {
+      return NextResponse.json(
+        { error: "Provide at least text or an image." },
+        { status: 400 }
+      );
     }
 
     const { data: question, error: questionError } = await supabaseAdmin
@@ -101,30 +92,74 @@ export async function POST(request: Request) {
 
     const maxScore: number = question.marks_available ?? 0;
 
-    const markingSchemeSection = question.marking_scheme
-      ? `Marking scheme:\n${question.marking_scheme}`
-      : "Marking scheme: Not provided — use your knowledge of Cambridge mark schemes.";
+    let answerImage: { mimeType: string; base64: string } | null = null;
+    if (answerImagePath) {
+      const ownerPrefix = answerImagePath.split("/")[0];
+      if (!ownerPrefix || ownerPrefix !== auth.userId) {
+        return NextResponse.json(
+          { error: "You cannot use another student's uploaded image." },
+          { status: 403 }
+        );
+      }
 
-    const prompt = `You are a Cambridge examiner. Mark the student's answer strictly and fairly.
+      const { data: downloadedImage, error: imageDownloadError } = await supabaseAdmin.storage
+        .from("answer-images")
+        .download(answerImagePath);
+      if (imageDownloadError || !downloadedImage) {
+        return NextResponse.json(
+          { error: imageDownloadError?.message ?? "Answer image not found." },
+          { status: 400 }
+        );
+      }
 
-Question: ${question.question_text}
-Marks available: ${maxScore}
-${markingSchemeSection}
+      const fileSize = downloadedImage.size;
+      if (fileSize > 8 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: "Answer image exceeds the 8 MB limit." },
+          { status: 413 }
+        );
+      }
 
-Student's answer:
-${answerText}
+      let mimeType = downloadedImage.type || "application/octet-stream";
+      if (mimeType === "application/octet-stream") {
+        const lowerPath = answerImagePath.toLowerCase();
+        if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) mimeType = "image/jpeg";
+        if (lowerPath.endsWith(".png")) mimeType = "image/png";
+        if (lowerPath.endsWith(".webp")) mimeType = "image/webp";
+      }
+      const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+      if (!allowedMimeTypes.has(mimeType)) {
+        return NextResponse.json(
+          { error: "Unsupported image type. Please use JPG, PNG, or WEBP." },
+          { status: 415 }
+        );
+      }
 
-Return ONLY valid JSON with no markdown fences:
-{
-  "score": <integer between 0 and ${maxScore}>,
-  "feedback": "<2-3 sentence overall comment on the answer>",
-  "strengths": ["<strength 1>", "<strength 2>"],
-  "improvements": ["<improvement 1>", "<improvement 2>"],
-  "model_answer": "<a complete model answer a top student would write>"
-}`;
+      const imageBytes = await downloadedImage.arrayBuffer();
+      answerImage = {
+        mimeType,
+        base64: Buffer.from(imageBytes).toString("base64"),
+      };
+    }
 
-    const { result } = await generateGeminiContent([{ text: prompt }]);
-    const marking = parseMarkingResult(result.response.text());
+    let marking: MarkingResult;
+    try {
+      const markResponse = await markAnswer({
+        questionText: question.question_text,
+        markingScheme: question.marking_scheme,
+        marksAvailable: maxScore,
+        answerText,
+        answerImage,
+      });
+      marking = parseMarkingResult(markResponse.text);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown Gemini error";
+      console.error(`[mark] Gemini marking failed: ${message}`);
+      return NextResponse.json(
+        { error: "Marking failed due to an AI processing issue. Please try again." },
+        { status: 502 }
+      );
+    }
 
     const clampedScore = Math.max(0, Math.min(marking.score, maxScore));
     const percentage = maxScore > 0 ? Math.round((clampedScore / maxScore) * 100) : 0;
@@ -137,7 +172,7 @@ Return ONLY valid JSON with no markdown fences:
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("xp, study_streak, last_study_date")
-      .eq("id", user.id)
+      .eq("id", auth.userId)
       .single();
 
     const currentXp: number = profile?.xp ?? 0;
@@ -178,7 +213,7 @@ Return ONLY valid JSON with no markdown fences:
       const { data: attemptsBefore, error: attemptsBeforeError } = await supabaseAdmin
         .from("attempts")
         .select("question_id")
-        .eq("user_id", user.id)
+        .eq("user_id", auth.userId)
         .in("question_id", paperQuestionIds);
 
       if (attemptsBeforeError) {
@@ -191,9 +226,11 @@ Return ONLY valid JSON with no markdown fences:
     const { data: attempt, error: attemptError } = await supabaseAdmin
       .from("attempts")
       .insert({
-        user_id: user.id,
+        user_id: auth.userId,
         question_id: questionId,
         answer_text: answerText,
+        answer_image_path: answerImagePath,
+        answer_image_url: null,
         score: clampedScore,
         max_score: maxScore,
         percentage,
@@ -219,7 +256,7 @@ Return ONLY valid JSON with no markdown fences:
       const { data: attemptsAfter, error: attemptsAfterError } = await supabaseAdmin
         .from("attempts")
         .select("question_id")
-        .eq("user_id", user.id)
+        .eq("user_id", auth.userId)
         .in("question_id", paperQuestionIds);
 
       if (attemptsAfterError) {
@@ -251,7 +288,15 @@ Return ONLY valid JSON with no markdown fences:
         study_streak: newStreak,
         last_study_date: today,
       })
-      .eq("id", user.id);
+      .eq("id", auth.userId);
+
+    let answerImageUrl: string | null = null;
+    if (answerImagePath) {
+      const { data: signedData } = await supabaseAdmin.storage
+        .from("answer-images")
+        .createSignedUrl(answerImagePath, 3600);
+      answerImageUrl = signedData?.signedUrl ?? null;
+    }
 
     return NextResponse.json({
       score: clampedScore,
@@ -264,6 +309,9 @@ Return ONLY valid JSON with no markdown fences:
       xpEarned,
       newStreak,
       paperCompleted,
+      answerText,
+      answerImagePath,
+      answerImageUrl,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown server error";
