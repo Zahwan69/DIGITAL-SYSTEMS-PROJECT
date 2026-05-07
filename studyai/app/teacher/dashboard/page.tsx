@@ -16,6 +16,7 @@ import {
 } from "recharts";
 
 import { AppShell } from "@/components/AppShell";
+import { ChatHeroCard } from "@/components/teacher/ChatHeroCard";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,7 +40,14 @@ type OverviewClass = {
 
 type SubjectOption = { id: string; name: string; syllabus_code: string | null };
 
-const LINE_COLORS = ["#7B1E23", "#A85560", "#C0848C", "#D4A5A5", "#5C0F14", "#991B1B"];
+const LINE_COLORS = [
+  "var(--color-text)",
+  "var(--color-text-muted)",
+  "var(--color-border-strong)",
+  "var(--color-border)",
+  "var(--color-accent-hover)",
+  "var(--color-success)",
+];
 
 function startMondayWeeks(count: number): string[] {
   const out: string[] = [];
@@ -189,6 +197,8 @@ function TeacherDashboardInner() {
   return (
     <AppShell>
       <div className="space-y-10">
+        <ChatHeroCard />
+
         <div>
           <h1 className="font-serif text-2xl font-semibold tracking-tight text-text sm:text-3xl">
             Teacher overview

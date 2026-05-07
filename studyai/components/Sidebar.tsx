@@ -1,192 +1,121 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useMemo } from "react";
-import {
-  BarChart3,
-  BookOpen,
-  LayoutDashboard,
-  Lightbulb,
-  Search,
-  ShieldCheck,
-  Upload,
-  Users,
-  ClipboardList,
-} from "lucide-react";
+import { GraduationCap } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import { AdminNav } from "@/components/AdminNav";
+import { AceternitySidebar } from "@/components/aceternity/sidebar";
+import { BRAND_NAME } from "@/lib/brand";
+import { navForRole, pathIsActive } from "@/lib/nav-config";
 import { cn } from "@/lib/utils";
-
-type NavItem = { href: string; pathMatch: string; label: string; icon: React.ReactNode };
-
-function NavLink({
-  item,
-  onNavigate,
-}: {
-  item: NavItem;
-  onNavigate?: () => void;
-}) {
-  const pathname = usePathname();
-  const m = item.pathMatch;
-  let active = pathname === m;
-  if (!active && m === "/papers") {
-    active = pathname.startsWith("/papers/") && !pathname.startsWith("/papers/search");
-  }
-  if (!active && m !== "/dashboard") {
-    active = pathname.startsWith(`${m}/`);
-  }
-
-  return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      className={cn(
-        "flex cursor-pointer items-center gap-3 rounded-md py-2 pl-2 pr-2 text-sm font-medium text-text transition-colors hover:bg-surface",
-        active && "bg-surface text-accent"
-      )}
-    >
-      <span className={cn("text-text-muted", active && "text-accent")}>{item.icon}</span>
-      {item.label}
-    </Link>
-  );
-}
-
-const teacherNavConfig: Array<{
-  base: string;
-  label: string;
-  icon: React.ReactNode;
-}> = [
-  { base: "/teacher/dashboard", label: "Overview", icon: <LayoutDashboard className="h-5 w-5" /> },
-  { base: "/teacher/classes", label: "Classes", icon: <Users className="h-5 w-5" /> },
-  { base: "/teacher/assignments", label: "Assignments", icon: <ClipboardList className="h-5 w-5" /> },
-  { base: "/teacher/insights", label: "Analytics", icon: <Lightbulb className="h-5 w-5" /> },
-];
-
-function TeacherNavInner({ onNavigate }: { onNavigate?: () => void }) {
-  const searchParams = useSearchParams();
-  const subject = searchParams.get("subject")?.trim();
-  const suffix = subject ? `?subject=${encodeURIComponent(subject)}` : "";
-
-  const items: NavItem[] = teacherNavConfig.map((c) => ({
-    href: `${c.base}${suffix}`,
-    pathMatch: c.base,
-    label: c.label,
-    icon: c.icon,
-  }));
-
-  return (
-    <>
-      {items.map((item) => (
-        <NavLink key={item.pathMatch} item={item} onNavigate={onNavigate} />
-      ))}
-    </>
-  );
-}
-
-function TeacherNav({ onNavigate }: { onNavigate?: () => void }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="mb-2 px-2 text-[10px] font-medium uppercase tracking-wide text-text-muted">Teaching</p>
-      <Suspense
-        fallback={<div className="h-9 rounded-md border border-border bg-surface px-2 py-2 text-xs text-text-muted">…</div>}
-      >
-        <TeacherNavInner onNavigate={onNavigate} />
-      </Suspense>
-    </div>
-  );
-}
-
-function StudentNav({ onNavigate }: { onNavigate?: () => void }) {
-  const items: NavItem[] = [
-    {
-      href: "/dashboard",
-      pathMatch: "/dashboard",
-      label: "Dashboard",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      href: "/papers",
-      pathMatch: "/papers",
-      label: "My Papers",
-      icon: <BookOpen className="h-5 w-5" />,
-    },
-    { href: "/upload", pathMatch: "/upload", label: "Upload", icon: <Upload className="h-5 w-5" /> },
-    {
-      href: "/papers/search",
-      pathMatch: "/papers/search",
-      label: "Search",
-      icon: <Search className="h-5 w-5" />,
-    },
-  ];
-
-  return (
-    <nav aria-label="Primary" className="space-y-0.5">
-      {items.map((item) => (
-        <NavLink key={item.href} item={item} onNavigate={onNavigate} />
-      ))}
-    </nav>
-  );
-}
 
 type SidebarProps = {
   open: boolean;
   role: string | null;
+  onClose: () => void;
 };
 
-export function Sidebar({ open, role }: SidebarProps) {
+export function Sidebar({ open, role, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const teacherArea = pathname.startsWith("/teacher");
   const adminArea = pathname.startsWith("/admin");
+  const [expanded, setExpanded] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("adminSidebarExpanded") === "true";
+  });
+  const items = navForRole(role);
 
-  const showAdminNav = role === "admin" && adminArea;
-  const showTeacherBlock = role === "teacher" && teacherArea && !adminArea;
+  useEffect(() => {
+    localStorage.setItem("adminSidebarExpanded", String(expanded));
+  }, [expanded]);
 
-  const panelNav = useMemo(
-    () => (
-      <>
-        {showAdminNav ? <AdminNav /> : showTeacherBlock ? <TeacherNav /> : <StudentNav />}
-        {role === "admin" && !adminArea ? (
-          <div className="mt-6 border-t border-border pt-3">
-            <Link
-              href="/admin/dashboard"
-              className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-text transition-colors hover:bg-surface"
-            >
-              <ShieldCheck className="h-5 w-5 text-text-muted" />
-              Admin console
-            </Link>
-          </div>
-        ) : null}
-        {role === "teacher" && !teacherArea && !adminArea ? (
-          <div className="mt-6 border-t border-border pt-3">
-            <p className="mb-2 px-2 text-[10px] font-medium uppercase tracking-wide text-text-muted">Teaching</p>
-            <Link
-              href="/teacher/dashboard"
-              className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-text transition-colors hover:bg-surface"
-            >
-              <BarChart3 className="h-5 w-5 text-text-muted" />
-              Teacher overview
-            </Link>
-          </div>
-        ) : null}
-      </>
-    ),
-    [adminArea, role, showAdminNav, showTeacherBlock, teacherArea]
-  );
+  if (role === "admin" && adminArea) {
+    return (
+      <div className="hidden lg:block">
+        <AceternitySidebar expanded={expanded}>
+          <button
+            type="button"
+            className="flex h-[72px] w-full cursor-pointer items-center gap-3 px-5 text-left text-text"
+            onClick={() => setExpanded((value) => !value)}
+            aria-label="Toggle navigation"
+          >
+            <GraduationCap className="h-6 w-6 shrink-0" strokeWidth={1.5} aria-hidden />
+            <span className={cn("text-sm font-semibold transition-opacity", expanded ? "opacity-100" : "opacity-0")}>
+              {BRAND_NAME}
+            </span>
+          </button>
+          <nav aria-label="Admin" className="space-y-1 px-3">
+            {items.map((item) => {
+              const active = pathIsActive(pathname, item.pathMatch);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-text-muted transition-colors hover:border hover:border-border-strong",
+                    active && "bg-accent text-text-on-accent hover:border-accent"
+                  )}
+                >
+                  <Icon className="h-5 w-5 shrink-0" strokeWidth={1.5} aria-hidden />
+                  <span className={cn("transition-opacity", expanded ? "opacity-100" : "sr-only opacity-0")}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+        </AceternitySidebar>
+      </div>
+    );
+  }
 
   return (
-    <aside
-      id="app-sidebar-panel"
-      aria-label="Primary navigation"
-      aria-hidden={!open}
-      className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col self-stretch overflow-hidden border-r border-border bg-surface-alt transition-[width] duration-300 ease-in-out",
-        open ? "w-56" : "w-0 border-transparent"
-      )}
-    >
-      <div className="flex h-full min-h-0 w-56 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-4">{panelNav}</div>
-      </div>
-    </aside>
+    <>
+      <button
+        type="button"
+        aria-label="Close navigation"
+        className={cn("fixed inset-0 z-40 bg-text/20 lg:hidden", open ? "block" : "hidden")}
+        onClick={onClose}
+      />
+      <aside
+        id="app-sidebar-panel"
+        aria-label="Primary navigation"
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-surface-alt transition-transform duration-200 lg:hidden",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <button
+          type="button"
+          className="flex h-16 items-center gap-3 px-5 text-left text-text"
+          onClick={onClose}
+          aria-label="Toggle navigation"
+        >
+          <GraduationCap className="h-6 w-6" strokeWidth={1.5} aria-hidden />
+          <span className="text-sm font-semibold">{BRAND_NAME}</span>
+        </button>
+        <nav aria-label="Primary" className="space-y-1 px-3 py-3">
+          {items.map((item) => {
+            const active = pathIsActive(pathname, item.pathMatch);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-text-muted",
+                  active && "bg-accent text-text-on-accent"
+                )}
+              >
+                <Icon className="h-5 w-5" strokeWidth={1.5} aria-hidden />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+    </>
   );
 }

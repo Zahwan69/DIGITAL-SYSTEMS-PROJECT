@@ -44,22 +44,22 @@ export function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Sign in to {BRAND_NAME} — your dashboard, papers, or teacher tools pick up where you left off.
+    <main className="flex min-h-screen items-center justify-center bg-surface-alt px-4 py-10">
+      <div className="w-full max-w-[400px] rounded-xl border border-border bg-surface p-6">
+        <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-text">Welcome back</h1>
+        <p className="mt-2 text-sm leading-relaxed text-text-muted">
+          Sign in to {BRAND_NAME}. Your dashboard, papers, and teacher tools pick up where you left off.
         </p>
 
         {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mt-4 rounded-lg border border-border bg-surface-alt px-3 py-2 text-sm text-danger">
             {error}
           </div>
         )}
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="email">
+            <label className="mb-1 block text-sm font-medium text-text" htmlFor="email">
               Email
             </label>
             <Input
@@ -73,7 +73,7 @@ export function LoginForm() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="password">
+            <label className="mb-1 block text-sm font-medium text-text" htmlFor="password">
               Password
             </label>
             <Input
@@ -91,9 +91,9 @@ export function LoginForm() {
           </Button>
         </form>
 
-        <p className="mt-4 text-sm text-slate-600">
+        <p className="mt-4 text-sm text-text-muted">
           New here?{" "}
-          <Link href="/auth/signup" className="font-medium text-indigo-600 hover:text-indigo-700">
+          <Link href="/auth/signup" className="font-medium text-text underline-offset-4 hover:underline">
             Create an account
           </Link>
         </p>

@@ -127,13 +127,13 @@ export default function UploadPage() {
           </p>
 
           {error && (
-            <div className="mt-4 rounded-lg border border-danger/30 bg-[#f3d3d3]/40 px-3 py-2 text-sm text-danger">
+            <div className="mt-4 rounded-lg border border-border bg-accent-soft px-3 py-2 text-sm text-danger">
               {error}
             </div>
           )}
 
           {successMessage && (
-            <div className="mt-4 rounded-lg border border-success/30 bg-[#e6f0d6]/50 px-3 py-2 text-sm text-success">
+            <div className="mt-4 rounded-lg border border-border bg-accent-soft px-3 py-2 text-sm text-success">
               {successMessage}
             </div>
           )}

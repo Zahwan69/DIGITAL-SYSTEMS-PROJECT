@@ -50,3 +50,12 @@ export async function requireAdmin(userId: string): Promise<boolean> {
     .single();
   return profile?.role === "admin";
 }
+
+export async function requireTeacher(userId: string): Promise<boolean> {
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  return profile?.role === "teacher";
+}
