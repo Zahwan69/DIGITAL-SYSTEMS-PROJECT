@@ -1,103 +1,102 @@
-import Image from "next/image";
 import Link from "next/link";
-import { BarChart3, FileUp, SearchCheck } from "lucide-react";
+import { BarChart3, Building2, FileUp, GraduationCap, SearchCheck, Users } from "lucide-react";
 
-import { FloatingNavbar } from "@/components/aceternity/floating-navbar";
+import { Hoverable, HoverableGroup } from "@/components/effects/Hoverable";
+import { HeroBanner } from "@/components/landing/HeroBanner";
+import { LandingFooter } from "@/components/landing/LandingFooter";
+import { LandingHeader } from "@/components/landing/LandingHeader";
+import { ThemedLandingImage } from "@/components/landing/ThemedLandingImage";
 import { Button } from "@/components/ui/button";
-import { BRAND_NAME } from "@/lib/brand";
+import Carousel from "@/components/ui/carousel";
 
 const features = [
   {
-    title: "Upload any past paper",
-    body: "Drop in Cambridge-style PDFs and keep every attempt organised in one calm workspace.",
+    title: "Past papers become practice sessions",
+    body: "Upload or find a paper, then move through questions in a focused workspace built for revision.",
     image: "/images/landing/feature-upload.png",
+    darkImage: "/images/landing/feature-upload-dark.png",
     Icon: FileUp,
   },
   {
-    title: "AI grades like an examiner",
-    body: "Get structured feedback, marks, and next-step guidance without leaving the paper flow.",
+    title: "Feedback explains the next step",
+    body: "See marks, strengths, missing points, and model answers that make the correction process clearer.",
     image: "/images/landing/feature-grading.png",
+    darkImage: "/images/landing/feature-grading-dark.png",
     Icon: SearchCheck,
   },
   {
-    title: "Track topics + streaks",
-    body: "See weak topics, recent effort, XP, and class progress build up over time.",
+    title: "Progress stays visible",
+    body: "XP, levels, streaks, and weak topics turn repeated practice into a pattern you can understand.",
     image: "/images/landing/feature-progress.png",
+    darkImage: "/images/landing/feature-progress-dark.png",
     Icon: BarChart3,
   },
 ];
 
-const steps = [
-  "Choose a paper or upload your own.",
-  "Answer questions with text and diagrams.",
-  "Review marks, hints, and model answers.",
-  "Teachers see class-level trends and support needs.",
+const howItWorksSlides = [
+  {
+    title: "Find a paper",
+    button: "Search by syllabus code or upload a PDF you already have.",
+    src: "/images/landing/feature-upload.png",
+  },
+  {
+    title: "Answer naturally",
+    button: "Type your answer or attach a photo of handwritten work.",
+    src: "/images/landing/hero.png",
+  },
+  {
+    title: "Understand feedback",
+    button: "See marks, missing points, strengths, and a model answer.",
+    src: "/images/landing/feature-grading.png",
+  },
+  {
+    title: "Track progress",
+    button: "Build XP, levels, streaks, and a clearer view of weak topics.",
+    src: "/images/landing/feature-progress.png",
+  },
 ];
 
-function DecorativeImage({
-  src,
-  width,
-  height,
-  className,
-  priority,
-}: {
-  src: string;
-  width: number;
-  height: number;
-  className: string;
-  priority?: boolean;
-}) {
-  return (
-    <div className={className}>
-      <Image
-        src={src}
-        alt=""
-        aria-hidden="true"
-        width={width}
-        height={height}
-        priority={priority}
-        className="h-full w-full object-cover opacity-70"
-      />
-    </div>
-  );
-}
+const audiences = [
+  {
+    title: "For students",
+    body: "Practise O Level and A Level style questions, understand what was missing, and build confidence before exam season.",
+    Icon: GraduationCap,
+  },
+  {
+    title: "For teachers",
+    body: "Create classes, invite learners, set paper-based practice, and see where students are struggling without marking every answer manually.",
+    Icon: Users,
+  },
+  {
+    title: "For schools",
+    body: "Support structured revision across classes with a shared workspace for past-paper practice, feedback, and progress visibility.",
+    Icon: Building2,
+  },
+];
 
 export default function HomePage() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-bg text-text">
-      <FloatingNavbar />
+      <LandingHeader />
+      <HeroBanner />
 
-      <section className="mx-auto flex min-h-[100svh] max-w-7xl flex-col items-center justify-center px-6 pb-24 pt-36 text-center">
-        <p className="text-sm font-medium uppercase tracking-wide text-text-muted">AI past-paper practice</p>
-        <h1 className="mt-8 max-w-4xl text-[44px] font-semibold leading-[1.05] tracking-[-0.025em] text-text md:text-[72px]">
-          Study smarter.
-        </h1>
-        <p className="mt-6 max-w-2xl text-base leading-[1.65] text-text-muted md:text-lg">
-          Past-paper practice, examiner-style feedback, and teacher insight in one monochrome workspace.
-        </p>
-        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-          <Button asChild size="lg">
-            <Link href="/auth/signup">Get started free</Link>
-          </Button>
-          <Button asChild variant="ghost" size="lg">
-            <Link href="#how-it-works">See how it works</Link>
-          </Button>
+      <section className="mx-auto max-w-7xl px-6 py-28">
+        <div className="mb-12 max-w-3xl">
+          <p className="text-sm font-medium uppercase tracking-wide text-text-muted">What StudyAI gives you</p>
+          <h2 className="mt-3 text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-text md:text-[48px]">
+            A clearer loop for exam practice.
+          </h2>
+          <p className="mt-5 text-base leading-[1.65] text-text-muted">
+            StudyAI keeps the practice flow simple: choose a paper, answer naturally, learn from feedback, and return to
+            the topics that need work.
+          </p>
         </div>
-        <DecorativeImage
-          src="/images/landing/hero.png"
-          width={1200}
-          height={800}
-          priority
-          className="mt-20 aspect-[3/2] w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-surface-alt"
-        />
-      </section>
-
-      <section id="features" className="mx-auto max-w-7xl px-6 py-28">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          {features.map(({ title, body, image, Icon }) => (
-            <article key={title} className="rounded-xl border border-border bg-surface p-4">
-              <DecorativeImage
+        <HoverableGroup className="grid-cols-1 md:grid-cols-3">
+          {features.map(({ title, body, image, darkImage, Icon }) => (
+            <Hoverable key={title} className="p-4">
+              <ThemedLandingImage
                 src={image}
+                darkSrc={darkImage}
                 width={480}
                 height={360}
                 className="aspect-[4/3] overflow-hidden rounded-xl bg-surface-alt"
@@ -105,31 +104,60 @@ export default function HomePage() {
               <Icon className="mt-6 h-6 w-6 text-text" strokeWidth={1.5} aria-hidden />
               <h2 className="mt-4 text-[28px] font-semibold leading-tight tracking-[-0.01em] text-text">{title}</h2>
               <p className="mt-3 text-base leading-[1.65] text-text-muted">{body}</p>
-            </article>
+            </Hoverable>
           ))}
-        </div>
+        </HoverableGroup>
       </section>
 
-      <section id="how-it-works" className="mx-auto max-w-7xl px-6 py-28">
-        <p className="text-sm font-medium uppercase tracking-wide text-text-muted">How it works</p>
-        <div className="mt-12 space-y-12">
-          {steps.map((step, index) => (
-            <div key={step} className="grid items-center gap-8 md:grid-cols-2">
-              <div className={index % 2 === 1 ? "md:order-2" : undefined}>
-                <p className="text-sm font-medium uppercase tracking-wide text-text-muted">Step {index + 1}</p>
-                <h2 className="mt-3 text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-text md:text-[48px]">
-                  {step}
-                </h2>
-              </div>
-              <div className="aspect-[16/10] rounded-2xl border border-border bg-surface-alt" />
+      <section className="mx-auto max-w-7xl px-6 py-28">
+        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-wide text-text-muted">Built for classrooms too</p>
+            <h2 className="mt-3 text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-text md:text-[48px]">
+              Useful for learners, teachers, and schools.
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-[1.65] text-text-muted">
+              StudyAI is not only a solo revision tool. It also gives teachers and schools a clearer way to organise
+              O Level and A Level past-paper practice across classes.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface-alt p-6">
+            <p className="text-sm font-medium uppercase tracking-wide text-text-muted">Classroom workflow</p>
+            <div className="mt-5 grid gap-3 text-sm text-text-muted sm:grid-cols-3">
+              {["Create classes", "Invite students", "Review progress"].map((item) => (
+                <div key={item} className="rounded-xl border border-border bg-surface p-4 text-text">
+                  {item}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
+
+        <HoverableGroup className="mt-12 grid-cols-1 md:grid-cols-3">
+          {audiences.map(({ title, body, Icon }) => (
+            <Hoverable key={title} className="p-6">
+              <Icon className="h-6 w-6 text-text" strokeWidth={1.5} aria-hidden />
+              <h3 className="mt-5 text-[28px] font-semibold leading-tight tracking-[-0.01em] text-text">{title}</h3>
+              <p className="mt-3 text-base leading-[1.65] text-text-muted">{body}</p>
+            </Hoverable>
+          ))}
+        </HoverableGroup>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-28">
+        <div className="mb-12 max-w-2xl">
+          <p className="text-sm font-medium uppercase tracking-wide text-text-muted">How it works</p>
+          <h2 className="mt-3 text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-text md:text-[48px]">
+            From first question to clearer revision.
+          </h2>
+        </div>
+        <Carousel slides={howItWorksSlides} />
       </section>
 
       <section className="mx-auto max-w-7xl px-6 py-28 text-center">
-        <DecorativeImage
+        <ThemedLandingImage
           src="/images/landing/closing.png"
+          darkSrc="/images/landing/closing-dark.png"
           width={1200}
           height={600}
           className="mx-auto aspect-[2/1] w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-surface-alt"
@@ -144,32 +172,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-border bg-bg">
-        <div className="mx-auto grid min-h-[240px] max-w-7xl gap-10 px-6 py-12 md:grid-cols-3">
-          {[
-            ["Product", "Features", "How it works", "Get started"],
-            ["Resources", "Dashboard", "Upload", "Search"],
-            ["Legal", "Privacy", "Terms", "Local demo"],
-          ].map(([heading, ...links]) => (
-            <div key={heading}>
-              <p className="text-sm font-medium uppercase tracking-wide text-text-muted">{heading}</p>
-              <ul className="mt-5 space-y-3 text-sm text-text-muted">
-                {links.map((link) => (
-                  <li key={link}>
-                    <span className="transition-colors hover:text-text">{link}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <div className="overflow-x-hidden px-6">
-          <p className="h-[0.72em] overflow-hidden text-[clamp(96px,18vw,240px)] font-semibold leading-[0.85] tracking-[-0.04em] text-text">
-            {BRAND_NAME}
-          </p>
-          <p className="py-4 text-center text-xs text-text-muted">© {new Date().getFullYear()} {BRAND_NAME}</p>
-        </div>
-      </footer>
+      <LandingFooter />
     </main>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { Hoverable } from "@/components/effects/Hoverable";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -50,17 +51,15 @@ export function ChatSidebar({
             <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-text-muted">{group}</p>
             <div className="space-y-1">
               {rows.map((chat) => (
-                <Link
-                  key={chat.id}
-                  href={`/teacher/chat/${chat.id}`}
-                  className={cn(
-                    "block rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-surface",
-                    activeChatId === chat.id && "bg-accent-soft text-text"
-                  )}
-                >
-                  <span className="line-clamp-1 font-medium">{chat.title}</span>
-                  <span className="mt-0.5 block line-clamp-1 text-xs">{chat.className}</span>
-                </Link>
+                <Hoverable key={chat.id} disableMotion={activeChatId === chat.id} className={cn(activeChatId === chat.id && "bg-accent-soft")}>
+                  <Link
+                    href={`/teacher/chat/${chat.id}`}
+                    className={cn("block px-3 py-2 text-sm text-text-muted", activeChatId === chat.id && "text-text")}
+                  >
+                    <span className="line-clamp-1 font-medium">{chat.title}</span>
+                    <span className="mt-0.5 block line-clamp-1 text-xs">{chat.className}</span>
+                  </Link>
+                </Hoverable>
               ))}
             </div>
           </div>

@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { authenticateRequest } from "@/lib/api-auth";
+import { authenticateRequest, requireTeacher } from "@/lib/api-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-
-async function requireTeacher(userId: string) {
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-  return profile?.role === "teacher";
-}
 
 function startOfWeekMonday(d: Date): Date {
   const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -32,7 +23,7 @@ export async function GET(request: Request) {
   }
 
   if (!(await requireTeacher(auth.userId))) {
-    return NextResponse.json({ error: "Teacher role required." }, { status: 403 });
+    return new NextResponse(null, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -104,6 +95,7 @@ export async function GET(request: Request) {
     id: string;
     percentage: number;
     created_at: string;
+    needsTeacherReview: boolean;
     studentLabel: string;
     questionId: string;
     paperId: string;
@@ -122,7 +114,7 @@ export async function GET(request: Request) {
     if (questionIds.length > 0) {
       const { data: attempts } = await supabaseAdmin
         .from("attempts")
-        .select("id, user_id, question_id, percentage, created_at")
+        .select("id, user_id, question_id, percentage, created_at, answer_image_path, needs_teacher_review")
         .in("question_id", questionIds)
         .gte("created_at", twelveWeeksAgo.toISOString())
         .order("created_at", { ascending: false });
@@ -183,6 +175,7 @@ export async function GET(request: Request) {
           id: a.id,
           percentage: Number(a.percentage),
           created_at: a.created_at,
+          needsTeacherReview: Boolean(a.needs_teacher_review || a.answer_image_path),
           studentLabel: pr?.full_name || pr?.username || "Student",
           questionId: a.question_id,
           paperId: pid,

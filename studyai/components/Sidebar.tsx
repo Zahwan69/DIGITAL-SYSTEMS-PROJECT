@@ -53,7 +53,7 @@ export function Sidebar({ open, role, onClose }: SidebarProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-text-muted transition-colors hover:border hover:border-border-strong",
+                    "flex h-11 items-center gap-3 rounded-lg border border-transparent px-3 text-sm font-medium text-text-muted transition-colors hover:border-border-strong hover:ring-1 hover:ring-[--color-border-strong]",
                     active && "bg-accent text-text-on-accent hover:border-accent"
                   )}
                 >

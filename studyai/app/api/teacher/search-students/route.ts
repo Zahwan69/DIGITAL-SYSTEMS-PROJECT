@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { authenticateRequest } from "@/lib/api-auth";
+import { authenticateRequest, requireTeacher } from "@/lib/api-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
@@ -9,13 +9,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }
 
-  const { data: me } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", auth.userId)
-    .single();
-  if (me?.role !== "teacher") {
-    return NextResponse.json({ error: "Teacher role required." }, { status: 403 });
+  if (!(await requireTeacher(auth.userId))) {
+    return new NextResponse(null, { status: 403 });
   }
 
   const url = new URL(request.url);

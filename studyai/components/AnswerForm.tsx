@@ -2,10 +2,11 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import { Paperclip, X } from "lucide-react";
+import { X } from "lucide-react";
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
+import { Dropzone } from "@/components/ui/Dropzone";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 
@@ -23,6 +24,7 @@ export type MarkResult = {
   answerText?: string;
   answerImagePath?: string | null;
   answerImageUrl?: string | null;
+  needsTeacherReview?: boolean;
 };
 
 type Props = {
@@ -53,45 +55,51 @@ export function AnswerForm({
   const [submitted, setSubmitted] = useState(false);
   const [hints, setHints] = useState<string[]>([]);
   const [hintLoading, setHintLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [selectedAttachment, setSelectedAttachment] = useState<File | null>(null);
+  const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [resultImageBroken, setResultImageBroken] = useState(false);
   const MAX_HINTS = 3;
-  const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+  const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+  const allowedAttachmentTypes = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+  ]);
 
   useEffect(() => {
     return () => {
-      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+      if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
     };
-  }, [imagePreviewUrl]);
+  }, [attachmentPreviewUrl]);
 
-  function clearSelectedImage() {
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-    setSelectedImage(null);
-    setImagePreviewUrl(null);
-    setImageError(null);
+  function clearSelectedAttachment() {
+    if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+    setSelectedAttachment(null);
+    setAttachmentPreviewUrl(null);
+    setAttachmentError(null);
   }
 
-  function handleImageChange(file: File | null) {
-    setImageError(null);
+  function handleAttachmentChange(file: File | null) {
+    setAttachmentError(null);
     if (!file) {
-      clearSelectedImage();
+      clearSelectedAttachment();
       return;
     }
-    if (!file.type.startsWith("image/")) {
-      clearSelectedImage();
-      setImageError("Please select an image file.");
+    if (!allowedAttachmentTypes.has(file.type)) {
+      clearSelectedAttachment();
+      setAttachmentError("Please attach a JPG, PNG, WEBP, or PDF file.");
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      clearSelectedImage();
-      setImageError("Image must be 8 MB or smaller.");
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      clearSelectedAttachment();
+      setAttachmentError("Attachment must be 8 MB or smaller.");
       return;
     }
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-    setSelectedImage(file);
-    setImagePreviewUrl(URL.createObjectURL(file));
+    if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+    setSelectedAttachment(file);
+    setAttachmentPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
   }
 
   async function handleGetHint() {
@@ -128,8 +136,8 @@ export function AnswerForm({
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!answer.trim() && !selectedImage) {
-      setError("Please provide text or attach an image.");
+    if (!answer.trim() && !selectedAttachment) {
+      setError("Please provide text or attach a file.");
       return;
     }
 
@@ -148,15 +156,16 @@ export function AnswerForm({
 
     try {
       let answerImagePath: string | null = null;
-      if (selectedImage) {
+      if (selectedAttachment) {
         const extensionByMime: Record<string, string> = {
           "image/jpeg": "jpg",
           "image/png": "png",
           "image/webp": "webp",
+          "application/pdf": "pdf",
         };
-        const extension = extensionByMime[selectedImage.type];
+        const extension = extensionByMime[selectedAttachment.type];
         if (!extension) {
-          setError("Unsupported image type. Please use JPG, PNG, or WEBP.");
+          setError("Unsupported file type. Please use JPG, PNG, WEBP, or PDF.");
           setLoading(false);
           return;
         }
@@ -164,12 +173,12 @@ export function AnswerForm({
         const uploadPath = `${session.user.id}/${crypto.randomUUID()}.${extension}`;
         const { error: uploadError } = await supabase.storage
           .from("answer-images")
-          .upload(uploadPath, selectedImage, {
-            contentType: selectedImage.type,
+          .upload(uploadPath, selectedAttachment, {
+            contentType: selectedAttachment.type,
             upsert: false,
           });
         if (uploadError) {
-          setError(`Image upload failed: ${uploadError.message}`);
+          setError(`File upload failed: ${uploadError.message}`);
           setLoading(false);
           return;
         }
@@ -198,7 +207,7 @@ export function AnswerForm({
 
       setSubmitted(true);
       setOpen(false);
-      clearSelectedImage();
+      clearSelectedAttachment();
       onSubmitted(data);
     } catch {
       setError("Network error. Please try again.");
@@ -232,9 +241,18 @@ export function AnswerForm({
         {existingResult.answerImageUrl ? (
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Your uploaded image
+              Your uploaded file
             </p>
-            {!resultImageBroken ? (
+            {existingResult.answerImagePath?.toLowerCase().endsWith(".pdf") ? (
+              <a
+                href={existingResult.answerImageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex rounded-md border border-border bg-surface px-3 py-2 text-xs font-medium text-text underline-offset-4 hover:underline"
+              >
+                Open uploaded PDF
+              </a>
+            ) : !resultImageBroken ? (
               <Image
                 src={existingResult.answerImageUrl}
                 alt="Your uploaded answer image"
@@ -248,6 +266,13 @@ export function AnswerForm({
             ) : (
               <p className="text-xs text-text-muted">Uploaded image unavailable.</p>
             )}
+          </div>
+        ) : null}
+
+        {existingResult.needsTeacherReview ? (
+          <div className="rounded-lg border border-warning/30 bg-accent-soft px-3 py-2 text-xs font-medium text-text">
+            This mark is provisional because the answer includes a diagram, graph, PDF, or handwritten
+            working. A teacher should review it before treating the score as final.
           </div>
         ) : null}
 
@@ -321,25 +346,37 @@ export function AnswerForm({
         className="resize-y text-sm"
         disabled={loading}
       />
+      <p className="text-xs text-text-muted">
+        Typed answers are preferred. Attach an image or PDF only when the question needs a drawing,
+        labelled diagram, graph, or handwritten working.
+      </p>
 
       <div className="flex flex-col gap-2">
-        <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs font-medium text-text hover:bg-surface-alt">
-          <Paperclip className="h-4 w-4 text-text-muted" />
-          Attach a photo of your working (optional)
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
-            disabled={loading}
-          />
-        </label>
+        <Dropzone
+          compact
+          accept={{
+            "image/jpeg": [".jpg", ".jpeg"],
+            "image/png": [".png"],
+            "image/webp": [".webp"],
+            "application/pdf": [".pdf"],
+          }}
+          disabled={loading}
+          maxSize={MAX_ATTACHMENT_BYTES}
+          onFilesAccepted={(picked) => handleAttachmentChange(picked[0] ?? null)}
+          onFilesRejected={() => {
+            clearSelectedAttachment();
+            setAttachmentError("Please attach one JPG, PNG, WEBP, or PDF file up to 8 MB.");
+          }}
+          inputProps={{ capture: "environment" }}
+          label="Attach working as an image or PDF (optional)"
+          hint="Use this for drawings, labelled diagrams, graphs, or handwritten work"
+          className="w-fit"
+        />
 
-        {imagePreviewUrl ? (
+        {attachmentPreviewUrl && selectedAttachment ? (
           <div className="flex items-start gap-3">
             <Image
-              src={imagePreviewUrl}
+              src={attachmentPreviewUrl}
               alt="Selected answer image preview"
               width={480}
               height={320}
@@ -348,7 +385,7 @@ export function AnswerForm({
             />
             <button
               type="button"
-              onClick={clearSelectedImage}
+              onClick={clearSelectedAttachment}
               className="inline-flex items-center gap-1 text-xs text-text-muted underline hover:text-text"
             >
               <X className="h-3.5 w-3.5" />
@@ -357,7 +394,21 @@ export function AnswerForm({
           </div>
         ) : null}
 
-        {imageError ? <p className="text-xs text-danger">{imageError}</p> : null}
+        {!attachmentPreviewUrl && selectedAttachment ? (
+          <div className="flex w-fit items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 text-xs text-text">
+            <span>{selectedAttachment.name}</span>
+            <button
+              type="button"
+              onClick={clearSelectedAttachment}
+              className="inline-flex items-center gap-1 text-text-muted underline hover:text-text"
+            >
+              <X className="h-3.5 w-3.5" />
+              Remove
+            </button>
+          </div>
+        ) : null}
+
+        {attachmentError ? <p className="text-xs text-danger">{attachmentError}</p> : null}
       </div>
 
       {hints.length > 0 && (
@@ -388,7 +439,7 @@ export function AnswerForm({
       {error ? <p className="text-xs text-red-700">{error}</p> : null}
 
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={loading || (!answer.trim() && !selectedImage)}>
+        <Button type="submit" size="sm" disabled={loading || (!answer.trim() && !selectedAttachment)}>
           {loading ? "Marking with AI..." : "Submit for marking"}
         </Button>
         <Button
@@ -400,7 +451,7 @@ export function AnswerForm({
             setAnswer("");
             setError(null);
             setHints([]);
-            clearSelectedImage();
+            clearSelectedAttachment();
           }}
           disabled={loading}
         >

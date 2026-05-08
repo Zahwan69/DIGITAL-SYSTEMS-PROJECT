@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { authenticateRequest } from "@/lib/api-auth";
+import { authenticateRequest, requireTeacher } from "@/lib/api-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 async function ensureClassOwner(classId: string, userId: string) {
@@ -20,6 +20,9 @@ export async function GET(
   const auth = await authenticateRequest(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
+  }
+  if (!(await requireTeacher(auth.userId))) {
+    return new NextResponse(null, { status: 403 });
   }
 
   const { classId } = await params;
@@ -72,6 +75,9 @@ export async function POST(
   const auth = await authenticateRequest(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
+  }
+  if (!(await requireTeacher(auth.userId))) {
+    return new NextResponse(null, { status: 403 });
   }
 
   const { classId } = await params;

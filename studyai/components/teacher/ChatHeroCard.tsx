@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { HoverBorderGradient } from "@/components/aceternity/hover-border-gradient";
+import { SpotlightCard } from "@/components/effects/SpotlightCard";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 
@@ -50,7 +51,7 @@ export function ChatHeroCard() {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-5">
+    <SpotlightCard className="p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
         <div className="flex-1">
           <p className="text-sm font-medium uppercase tracking-wide text-text-muted">Teacher AI</p>
@@ -99,6 +100,6 @@ export function ChatHeroCard() {
           Open chat
         </Button>
       </div>
-    </section>
+    </SpotlightCard>
   );
 }

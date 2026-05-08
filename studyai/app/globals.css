@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-bg: #FFFFFF;
   --color-surface: #FFFFFF;
@@ -31,8 +33,26 @@ body {
   color: var(--color-text);
 }
 
+:root.dark {
+  --color-bg: #0A0A0A;
+  --color-surface: #111111;
+  --color-surface-alt: #161616;
+  --color-text: #FAFAFA;
+  --color-text-muted: #A1A1A6;
+  --color-text-on-accent: #0A0A0A;
+  --color-border: #262626;
+  --color-border-strong: #3A3A3A;
+  --color-accent: #FAFAFA;
+  --color-accent-hover: #E5E5E5;
+  --color-accent-soft: #1F1F1F;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+}
+
 html {
   scroll-behavior: smooth;
+  color-scheme: light dark;
 }
 
 @media (prefers-reduced-motion: reduce) {

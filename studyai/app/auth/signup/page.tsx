@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SpotlightCard } from "@/components/effects/SpotlightCard";
 import { Input } from "@/components/ui/input";
 import { BRAND_NAME } from "@/lib/brand";
 import { supabase } from "@/lib/supabase";
@@ -69,7 +70,7 @@ export default function SignupPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface-alt px-4 py-10">
-      <div className="w-full max-w-[400px] rounded-xl border border-border bg-surface p-6">
+      <SpotlightCard className="w-full max-w-[400px] p-6">
         <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-text">Create account</h1>
         <p className="mt-2 text-sm leading-relaxed text-text-muted">
           Join {BRAND_NAME}. Practise with feedback as a student, or run classes and assignments as a teacher.
@@ -142,7 +143,7 @@ export default function SignupPage() {
             Sign in
           </Link>
         </p>
-      </div>
+      </SpotlightCard>
     </main>
   );
 }

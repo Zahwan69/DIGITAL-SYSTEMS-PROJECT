@@ -15,7 +15,11 @@ create index if not exists questions_has_diagram_idx
 --    graph paper, etc.)
 alter table public.attempts
   add column if not exists answer_image_url text,
-  add column if not exists answer_image_path text;
+  add column if not exists answer_image_path text,
+  add column if not exists needs_teacher_review boolean not null default false;
+
+create index if not exists attempts_needs_teacher_review_idx
+  on public.attempts(needs_teacher_review) where needs_teacher_review = true;
 
 -- No RLS changes here - questions and attempts already have policies.
 

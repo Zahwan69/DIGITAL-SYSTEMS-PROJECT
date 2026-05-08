@@ -38,6 +38,26 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    const role = profile?.role ?? "student";
+
+    if (pathname.startsWith("/admin") && role !== "admin") {
+      const redirectUrl = new URL(role === "teacher" ? "/teacher/dashboard" : "/dashboard", request.url);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    if (pathname.startsWith("/teacher") && role !== "teacher") {
+      const redirectUrl = new URL(role === "admin" ? "/admin/dashboard" : "/dashboard", request.url);
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
   return supabaseResponse;
 }
 

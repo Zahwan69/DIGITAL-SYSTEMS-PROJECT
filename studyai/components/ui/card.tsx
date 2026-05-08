@@ -8,7 +8,7 @@ const cardVariants = cva("rounded-lg border text-text", {
     variant: {
       default: "border-border bg-surface",
       interactive:
-        "border-border bg-surface hover:border-border-strong hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+        "border-border bg-surface transition-colors duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-alt motion-reduce:hover:translate-y-0",
       highlight: "border-border-strong bg-accent-soft",
       muted: "border-border bg-surface-alt",
     },

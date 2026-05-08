@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Dropzone } from "@/components/ui/Dropzone";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 
@@ -28,24 +29,15 @@ export default function UploadPage() {
     return paperIds[0] ? `/papers/${paperIds[0]}` : null;
   }, [paperIds]);
 
-  function handleFileChange(event: { target: HTMLInputElement }) {
+  function handleFilesAccepted(pickedFiles: File[]) {
     setError(null);
     setSuccessMessage(null);
     setPaperIds([]);
-
-    const pickedFiles = Array.from(event.target.files ?? []);
-
-    if (pickedFiles.length === 0) {
-      setFiles([]);
-      setSelectedFilenames([]);
-      return;
-    }
 
     if (pickedFiles.length > 10) {
       setFiles([]);
       setSelectedFilenames([]);
       setError("You can upload up to 10 PDF files at once.");
-      event.target.value = "";
       return;
     }
 
@@ -54,12 +46,17 @@ export default function UploadPage() {
       setFiles([]);
       setSelectedFilenames([]);
       setError("Only PDF files are allowed.");
-      event.target.value = "";
       return;
     }
 
     setFiles(pickedFiles);
     setSelectedFilenames(pickedFiles.map((pickedFile) => pickedFile.name));
+  }
+
+  function handleFilesRejected() {
+    setFiles([]);
+    setSelectedFilenames([]);
+    setError("Only PDF files are allowed (max 10).");
   }
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
@@ -153,11 +150,16 @@ export default function UploadPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-text" htmlFor="files">
-                PDF Files
-              </label>
-              <Input id="files" type="file" accept=".pdf" multiple onChange={handleFileChange} required />
-              <p className="mt-2 text-xs text-text-muted">You can upload up to 10 PDF files.</p>
+              <span className="mb-1 block text-sm font-medium text-text">PDF Files</span>
+              <Dropzone
+                accept={{ "application/pdf": [".pdf"] }}
+                multiple
+                maxFiles={10}
+                onFilesAccepted={handleFilesAccepted}
+                onFilesRejected={handleFilesRejected}
+                label="Drop PDFs here, or click to browse"
+                hint="Up to 10 PDF files"
+              />
               {selectedFilenames.length > 0 && (
                 <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-text-muted">
                   {selectedFilenames.map((name) => (

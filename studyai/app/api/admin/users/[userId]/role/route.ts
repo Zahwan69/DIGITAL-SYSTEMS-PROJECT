@@ -15,7 +15,7 @@ export async function POST(
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }
   if (!(await requireAdmin(auth.userId))) {
-    return NextResponse.json({ error: "Admin role required." }, { status: 403 });
+    return new NextResponse(null, { status: 403 });
   }
 
   const { userId } = await params;

@@ -7,6 +7,8 @@ import { BookOpen, ClipboardList, Flame, Plus, Search, Upload } from "lucide-rea
 
 import { AppShell } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
+import { Hoverable, HoverableGroup } from "@/components/effects/Hoverable";
+import { RingHover } from "@/components/effects/RingHover";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -248,7 +250,7 @@ export default function DashboardPage() {
             : "Upload papers, get AI marking feedback, and join your teacher’s classes from this home."}
         </p>
 
-        <Card>
+        <Hoverable>
           <CardHeader>
             <CardTitle>Level {level}</CardTitle>
             <CardDescription>
@@ -270,7 +272,7 @@ export default function DashboardPage() {
               Study streak: {streak} day(s)
             </p>
           </CardContent>
-        </Card>
+        </Hoverable>
 
         {invites.length > 0 && (
           <Card variant="highlight">
@@ -363,7 +365,7 @@ export default function DashboardPage() {
             ) : (
               <ul className="space-y-3">
                 {assignments.map((a) => (
-                  <li key={a.id} className="rounded-lg border border-border bg-surface p-3">
+                  <RingHover key={a.id} className="p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold text-text">{a.title}</p>
                       <Link
@@ -385,17 +387,17 @@ export default function DashboardPage() {
                         Due {new Date(a.due_date).toLocaleDateString()}
                       </p>
                     )}
-                  </li>
+                  </RingHover>
                 ))}
               </ul>
             )}
           </CardContent>
         </Card>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <HoverableGroup className="md:grid-cols-3">
           {quickActions.map((action) => (
             <Link key={action.href} href={action.href} className="block">
-              <Card variant="interactive" className="h-full">
+              <Hoverable className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <span className="text-text-muted">{action.icon}</span>
@@ -403,10 +405,10 @@ export default function DashboardPage() {
                   </CardTitle>
                   <CardDescription>{action.description}</CardDescription>
                 </CardHeader>
-              </Card>
+              </Hoverable>
             </Link>
           ))}
-        </section>
+        </HoverableGroup>
 
         <Card>
           <CardHeader>

@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }
   if (!(await requireAdmin(auth.userId))) {
-    return NextResponse.json({ error: "Admin role required." }, { status: 403 });
+    return new NextResponse(null, { status: 403 });
   }
 
   const { data, error } = await supabaseAdmin
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }
   if (!(await requireAdmin(auth.userId))) {
-    return NextResponse.json({ error: "Admin role required." }, { status: 403 });
+    return new NextResponse(null, { status: 403 });
   }
 
   const body = (await request.json().catch(() => null)) as {

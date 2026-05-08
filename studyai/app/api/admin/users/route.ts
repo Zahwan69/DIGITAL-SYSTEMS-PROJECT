@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }
   if (!(await requireAdmin(auth.userId))) {
-    return NextResponse.json({ error: "Admin role required." }, { status: 403 });
+    return new NextResponse(null, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

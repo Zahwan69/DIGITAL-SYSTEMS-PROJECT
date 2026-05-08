@@ -16,6 +16,9 @@ import {
 } from "recharts";
 
 import { AppShell } from "@/components/AppShell";
+import { BentoGrid } from "@/components/aceternity/bento-grid";
+import { Hoverable } from "@/components/effects/Hoverable";
+import { RingHover } from "@/components/effects/RingHover";
 import { ChatHeroCard } from "@/components/teacher/ChatHeroCard";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,6 +80,7 @@ function TeacherDashboardInner() {
       id: string;
       percentage: number;
       created_at: string;
+      needsTeacherReview: boolean;
       studentLabel: string;
       questionId: string;
       paperId: string;
@@ -208,7 +212,7 @@ function TeacherDashboardInner() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <BentoGrid>
           {loading ? (
             <>
               <Skeleton className="h-28 w-full" />
@@ -217,7 +221,7 @@ function TeacherDashboardInner() {
             </>
           ) : (
             <>
-              <Card>
+              <Hoverable>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-text-muted">Active students</CardTitle>
                 </CardHeader>
@@ -226,8 +230,8 @@ function TeacherDashboardInner() {
                     {kpis.activeStudents}
                   </p>
                 </CardContent>
-              </Card>
-              <Card>
+              </Hoverable>
+              <Hoverable>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-text-muted">Assignments this week</CardTitle>
                 </CardHeader>
@@ -236,8 +240,8 @@ function TeacherDashboardInner() {
                     {kpis.assignmentsThisWeek}
                   </p>
                 </CardContent>
-              </Card>
-              <Card>
+              </Hoverable>
+              <Hoverable>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-text-muted">Average score</CardTitle>
                 </CardHeader>
@@ -246,10 +250,10 @@ function TeacherDashboardInner() {
                     {kpis.averageScore != null ? `${kpis.averageScore}%` : "—"}
                   </p>
                 </CardContent>
-              </Card>
+              </Hoverable>
             </>
           )}
-        </div>
+        </BentoGrid>
 
         <Card>
           <CardHeader>
@@ -339,9 +343,9 @@ function TeacherDashboardInner() {
               </CardContent>
             </Card>
           ) : (
-            <ul className="mt-4 divide-y divide-border rounded-lg border border-border bg-surface">
-              {classes.map((cls) => (
-                <li key={cls.id} className="hover:bg-accent-soft/40">
+              <ul className="mt-4 space-y-2">
+                {classes.map((cls) => (
+                <RingHover key={cls.id}>
                   <Link href={`/teacher/classes/${cls.id}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
                     <div>
                       <p className="font-medium text-text">{cls.name}</p>
@@ -354,9 +358,9 @@ function TeacherDashboardInner() {
                       <span>{cls.assignment_count} assignments</span>
                     </div>
                   </Link>
-                </li>
+                </RingHover>
               ))}
-            </ul>
+              </ul>
           )}
         </div>
 
@@ -375,10 +379,17 @@ function TeacherDashboardInner() {
                 {recentAttempts.map((a) => (
                   <li
                     key={a.id}
-                    className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-2 text-sm last:border-0"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:border-border-strong"
                   >
                     <div>
-                      <p className="font-medium text-text">{a.studentLabel}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-text">{a.studentLabel}</p>
+                        {a.needsTeacherReview ? (
+                          <span className="rounded-full border border-warning/40 bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-text">
+                            Teacher review
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="text-xs text-text-muted">{a.className}</p>
                     </div>
                     <div className="flex items-center gap-3">

@@ -5,6 +5,7 @@ import { GraduationCap } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { SignOutButton } from "@/components/SignOutButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { BRAND_NAME } from "@/lib/brand";
 import { navForRole, pathIsActive } from "@/lib/nav-config";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,7 @@ export function Navbar({ role, sidebarOpen, onToggleSidebar }: NavbarProps) {
       )}
 
       <div className="ml-auto flex items-center gap-2">
+        <ThemeToggle />
         {role ? (
           <span className="rounded-full border border-border bg-surface-alt px-2.5 py-1 text-xs font-medium capitalize text-text-muted">
             {role}

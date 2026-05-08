@@ -115,7 +115,7 @@ export async function POST(request: Request) {
       const fileSize = downloadedImage.size;
       if (fileSize > 8 * 1024 * 1024) {
         return NextResponse.json(
-          { error: "Answer image exceeds the 8 MB limit." },
+          { error: "Answer attachment exceeds the 8 MB limit." },
           { status: 413 }
         );
       }
@@ -126,11 +126,12 @@ export async function POST(request: Request) {
         if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) mimeType = "image/jpeg";
         if (lowerPath.endsWith(".png")) mimeType = "image/png";
         if (lowerPath.endsWith(".webp")) mimeType = "image/webp";
+        if (lowerPath.endsWith(".pdf")) mimeType = "application/pdf";
       }
-      const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+      const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
       if (!allowedMimeTypes.has(mimeType)) {
         return NextResponse.json(
-          { error: "Unsupported image type. Please use JPG, PNG, or WEBP." },
+          { error: "Unsupported file type. Please use JPG, PNG, WEBP, or PDF." },
           { status: 415 }
         );
       }
@@ -231,6 +232,7 @@ export async function POST(request: Request) {
         answer_text: answerText,
         answer_image_path: answerImagePath,
         answer_image_url: null,
+        needs_teacher_review: Boolean(answerImagePath),
         score: clampedScore,
         max_score: maxScore,
         percentage,
@@ -312,6 +314,7 @@ export async function POST(request: Request) {
       answerText,
       answerImagePath,
       answerImageUrl,
+      needsTeacherReview: Boolean(answerImagePath),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown server error";

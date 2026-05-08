@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SpotlightCard } from "@/components/effects/SpotlightCard";
 import { Input } from "@/components/ui/input";
 import { BRAND_NAME } from "@/lib/brand";
 import { supabase } from "@/lib/supabase";
@@ -45,7 +46,7 @@ export function LoginForm() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface-alt px-4 py-10">
-      <div className="w-full max-w-[400px] rounded-xl border border-border bg-surface p-6">
+      <SpotlightCard className="w-full max-w-[400px] p-6">
         <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-text">Welcome back</h1>
         <p className="mt-2 text-sm leading-relaxed text-text-muted">
           Sign in to {BRAND_NAME}. Your dashboard, papers, and teacher tools pick up where you left off.
@@ -97,7 +98,7 @@ export function LoginForm() {
             Create an account
           </Link>
         </p>
-      </div>
+      </SpotlightCard>
     </main>
   );
 }

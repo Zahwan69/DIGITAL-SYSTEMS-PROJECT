@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { authenticateRequest } from "@/lib/api-auth";
+import { authenticateRequest, requireTeacher } from "@/lib/api-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-
-async function requireTeacher(userId: string) {
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-  return profile?.role === "teacher";
-}
 
 const CAP = 500;
 
@@ -20,7 +11,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }
   if (!(await requireTeacher(auth.userId))) {
-    return NextResponse.json({ error: "Teacher role required." }, { status: 403 });
+    return new NextResponse(null, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

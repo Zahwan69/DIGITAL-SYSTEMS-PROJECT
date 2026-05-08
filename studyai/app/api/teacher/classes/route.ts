@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { authenticateRequest } from "@/lib/api-auth";
+import { authenticateRequest, requireTeacher } from "@/lib/api-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { generateJoinCode } from "@/lib/utils";
-
-async function requireTeacher(userId: string) {
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-  return profile?.role === "teacher";
-}
 
 export async function GET(request: Request) {
   const auth = await authenticateRequest(request);
@@ -20,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   if (!(await requireTeacher(auth.userId))) {
-    return NextResponse.json({ error: "Teacher role required." }, { status: 403 });
+    return new NextResponse(null, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -70,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   if (!(await requireTeacher(auth.userId))) {
-    return NextResponse.json({ error: "Teacher role required." }, { status: 403 });
+    return new NextResponse(null, { status: 403 });
   }
 
   const body = (await request.json().catch(() => null)) as {

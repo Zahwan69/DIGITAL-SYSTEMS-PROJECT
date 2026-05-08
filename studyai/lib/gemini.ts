@@ -102,7 +102,7 @@ ${markingSchemeSection}
 Student's written answer:
 ${input.answerText || "(no text provided)"}
 
-The student's answer may include both written text and a photograph of their working (handwriting, a diagram, a graph plotted on paper, or a hand-drawn figure). Mark the combined answer. If a feature is only legible in the image, mark from the image. If the text and image contradict, prefer the more recent / more complete representation noted in the image. Penalise illegibility only if the legible portion is itself wrong.
+The student's answer may include written text plus one attachment: a photograph/image or a PDF of their working (handwriting, a labelled diagram, a graph plotted on paper, or a hand-drawn figure). Mark the combined answer. If a feature is only legible in the attachment, mark from the attachment. If the text and attachment contradict, prefer the more complete representation in the attachment. Penalise illegibility only if the legible portion is itself wrong.
 
 Return ONLY valid JSON with no markdown fences:
 {

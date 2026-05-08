@@ -152,7 +152,7 @@ export default function PaperPage() {
         const { data: attemptsData, error: attemptsError } = await supabase
           .from("attempts")
           .select(
-            "question_id, answer_text, answer_image_path, score, max_score, percentage, feedback, strengths, improvements, model_answer, xp_earned, created_at"
+            "question_id, answer_text, answer_image_path, needs_teacher_review, score, max_score, percentage, feedback, strengths, improvements, model_answer, xp_earned, created_at"
           )
           .eq("user_id", user.id)
           .in("question_id", questionIds)
@@ -194,6 +194,7 @@ export default function PaperPage() {
             answerImageUrl: attempt.answer_image_path
               ? signedUrlByPath.get(attempt.answer_image_path) ?? null
               : null,
+            needsTeacherReview: attempt.needs_teacher_review ?? Boolean(attempt.answer_image_path),
           };
         }
       }

@@ -13,6 +13,9 @@ import {
 } from "recharts";
 
 import { AppShell } from "@/components/AppShell";
+import { BentoGrid } from "@/components/aceternity/bento-grid";
+import { Hoverable } from "@/components/effects/Hoverable";
+import { SpotlightCard } from "@/components/effects/SpotlightCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase";
@@ -85,16 +88,16 @@ export default function AdminDashboardPage() {
         )}
         {!loading && data && (
           <>
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card>
+            <BentoGrid className="md:grid-cols-4">
+              <Hoverable>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-text-muted">Users</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="font-serif text-2xl font-semibold tabular-nums text-text">{data.totals.users}</p>
                 </CardContent>
-              </Card>
-              <Card>
+              </Hoverable>
+              <Hoverable>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-text-muted">Teachers</CardTitle>
                 </CardHeader>
@@ -103,8 +106,8 @@ export default function AdminDashboardPage() {
                     {data.totals.teachers}
                   </p>
                 </CardContent>
-              </Card>
-              <Card>
+              </Hoverable>
+              <Hoverable>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-text-muted">Classes</CardTitle>
                 </CardHeader>
@@ -113,8 +116,8 @@ export default function AdminDashboardPage() {
                     {data.totals.classes}
                   </p>
                 </CardContent>
-              </Card>
-              <Card>
+              </Hoverable>
+              <Hoverable>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-text-muted">Papers</CardTitle>
                 </CardHeader>
@@ -123,9 +126,9 @@ export default function AdminDashboardPage() {
                     {data.totals.papers}
                   </p>
                 </CardContent>
-              </Card>
-            </div>
-            <Card>
+              </Hoverable>
+            </BentoGrid>
+            <SpotlightCard>
               <CardHeader>
                 <CardTitle>Activity (30 days)</CardTitle>
                 <CardDescription>Daily signups, attempts, and new papers.</CardDescription>
@@ -149,7 +152,7 @@ export default function AdminDashboardPage() {
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
-            </Card>
+            </SpotlightCard>
             <Card>
               <CardHeader>
                 <CardTitle>Top teachers by class size</CardTitle>
@@ -166,7 +169,7 @@ export default function AdminDashboardPage() {
                     </thead>
                     <tbody>
                       {data.topTeachers.map((t) => (
-                        <tr key={t.teacherId} className="border-b border-border">
+                        <tr key={t.teacherId} className="border-b border-border transition-colors hover:outline hover:outline-1 hover:outline-[--color-border-strong]">
                           <td className="py-2 pr-4 text-text">{t.label}</td>
                           <td className="py-2 tabular-nums text-text-muted">{t.studentCount}</td>
                         </tr>

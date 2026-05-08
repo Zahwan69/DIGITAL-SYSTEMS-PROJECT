@@ -43,6 +43,7 @@ export interface Attempt {
   answer_text: string;
   answer_image_url: string | null;
   answer_image_path: string | null;
+  needs_teacher_review: boolean;
   score: number;
   max_score: number;
   percentage: number;

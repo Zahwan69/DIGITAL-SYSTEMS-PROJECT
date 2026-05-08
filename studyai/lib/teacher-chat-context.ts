@@ -7,12 +7,12 @@ export type ClassSnapshot = {
   generatedAt: string;
   windowDays: 30;
   roster: Array<{ studentLabel: string; xpTotal: number; xpLast30: number; lastActive: string | null }>;
-  attemptsSummary: { total30d: number; avgPercentage: number; activeStudents30d: number };
+  attemptsSummary: { total30d: number; avgPercentage: number; activeStudents30d: number; needsTeacherReview30d: number };
   perStudent: Array<{ studentLabel: string; attempts30d: number; avgPercentage: number; topWeakTopic?: string }>;
   topicMastery: Array<{ topic: string; attempts: number; avgPercentage: number }>;
   difficultyMix: Array<{ difficulty: "easy" | "medium" | "hard"; attempts: number; avgPercentage: number }>;
   assignments: Array<{ title: string; dueAt: string | null; assigned: number; attempted: number; completed: number }>;
-  recentActivity: Array<{ studentLabel: string; assignmentOrPaper: string; percentage: number; at: string }>;
+  recentActivity: Array<{ studentLabel: string; assignmentOrPaper: string; percentage: number; at: string; needsTeacherReview: boolean }>;
 };
 
 function studentLabel(profile: { username?: string | null; full_name?: string | null }) {
@@ -88,7 +88,7 @@ export async function buildClassSnapshot(classId: string, teacherId: string): Pr
     questionIds.length > 0 && studentIds.length > 0
       ? await supabaseAdmin
           .from("attempts")
-          .select("id, user_id, question_id, percentage, created_at")
+          .select("id, user_id, question_id, percentage, created_at, answer_image_path, needs_teacher_review")
           .in("question_id", questionIds)
           .in("user_id", studentIds)
           .gte("created_at", since.toISOString())
@@ -177,6 +177,9 @@ export async function buildClassSnapshot(classId: string, teacherId: string): Pr
       total30d: attemptRows.length,
       avgPercentage: average(percentages),
       activeStudents30d: new Set(attemptRows.map((attempt) => attempt.user_id)).size,
+      needsTeacherReview30d: attemptRows.filter((attempt) =>
+        Boolean(attempt.needs_teacher_review || attempt.answer_image_path)
+      ).length,
     },
     perStudent,
     topicMastery: [...topics.entries()].map(([topic, values]) => ({
@@ -197,6 +200,7 @@ export async function buildClassSnapshot(classId: string, teacherId: string): Pr
         assignmentOrPaper: question ? paperTitleById.get(question.paper_id) ?? "Paper" : "Paper",
         percentage: Number(attempt.percentage ?? 0),
         at: attempt.created_at,
+        needsTeacherReview: Boolean(attempt.needs_teacher_review || attempt.answer_image_path),
       };
     }),
   };
