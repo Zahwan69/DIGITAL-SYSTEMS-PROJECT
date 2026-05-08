@@ -19,7 +19,7 @@ export function Hoverable({
         "rounded-xl border border-border bg-surface transition-colors",
         staticMode
           ? "hover:border-border-strong"
-          : "duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-alt",
+          : "duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-border-strong hover:bg-surface-alt/60",
         className
       )}
     >

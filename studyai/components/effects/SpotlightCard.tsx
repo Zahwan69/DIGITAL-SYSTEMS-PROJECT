@@ -33,9 +33,9 @@ export function SpotlightCard({
       {!staticMode ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-20"
+          className="pointer-events-none absolute inset-0 opacity-12"
           style={{
-            background: `radial-gradient(circle at ${position.x}% ${position.y}%, var(--color-accent-soft), transparent 38%)`,
+            background: `radial-gradient(circle at ${position.x}% ${position.y}%, var(--color-accent-soft), transparent 46%)`,
           }}
         />
       ) : null}
