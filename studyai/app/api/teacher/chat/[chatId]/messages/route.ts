@@ -13,10 +13,12 @@ async function assertTeacher(request: Request) {
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number) {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Gemini request timed out.")), ms)),
-  ]);
+  let timeout: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new Error("Gemini request timed out.")), ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeout));
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ chatId: string }> }) {
@@ -37,9 +39,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ cha
 
   if (!chat) return new NextResponse(null, { status: 404 });
 
-  const { error: userInsertError } = await supabaseAdmin
+  const snapshot = await buildClassSnapshot(chat.class_id, gate.userId);
+
+  const { data: userMessage, error: userInsertError } = await supabaseAdmin
     .from("teacher_chat_messages")
-    .insert({ chat_id: chatId, role: "user", content });
+    .insert({ chat_id: chatId, role: "user", content })
+    .select("id, role, content, created_at")
+    .single();
 
   if (userInsertError) return NextResponse.json({ error: userInsertError.message }, { status: 500 });
 
@@ -50,7 +56,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ cha
     .order("created_at", { ascending: false })
     .limit(20);
 
-  const snapshot = await buildClassSnapshot(chat.class_id, gate.userId);
+  const hasRecentClassActivity =
+    snapshot.attemptsSummary.total30d > 0 ||
+    snapshot.assignments.some((assignment) => assignment.attempted > 0) ||
+    snapshot.recentActivity.length > 0;
+
+  if (!hasRecentClassActivity) {
+    const assistantText = "There's no recent activity in this class to summarise yet.";
+    const { data: assistantMessage, error: assistantInsertError } = await supabaseAdmin
+      .from("teacher_chat_messages")
+      .insert({ chat_id: chatId, role: "assistant", content: assistantText })
+      .select("id, role, content, created_at")
+      .single();
+
+    if (assistantInsertError) return NextResponse.json({ error: assistantInsertError.message }, { status: 500 });
+
+    await supabaseAdmin
+      .from("teacher_chats")
+      .update({
+        last_message_at: new Date().toISOString(),
+        ...(chat.title === "New chat" ? { title: content.slice(0, 60) } : {}),
+      })
+      .eq("id", chatId)
+      .eq("teacher_id", gate.userId);
+
+    return NextResponse.json({ userMessage, assistantMessage });
+  }
+
   const system = `Only answer using the data provided. If the snapshot does not contain the answer, say so. Do not invent student names or scores.
 
 Class snapshot:
@@ -63,7 +95,7 @@ ${JSON.stringify(snapshot, null, 2)}`;
 
   try {
     const result = await withTimeout(
-      geminiFlash.generateContent([{ text: `${system}\n\nChat history:\n${transcript}\n\nuser: ${content}` }]),
+      geminiFlash.generateContent([{ text: `${system}\n\nChat history:\n${transcript}` }]),
       60000
     );
     const assistantText = result.response.text();
@@ -85,7 +117,7 @@ ${JSON.stringify(snapshot, null, 2)}`;
       .eq("id", chatId)
       .eq("teacher_id", gate.userId);
 
-    return NextResponse.json({ assistantMessage });
+    return NextResponse.json({ userMessage, assistantMessage });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gemini request failed.";
     return NextResponse.json({ error: message }, { status: 502 });
