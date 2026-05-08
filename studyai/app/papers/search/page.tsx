@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
-import { Navbar } from "@/components/Navbar";
+import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,12 +53,11 @@ export default function SearchPage() {
   }
 
   return (
-    <>
-      <Navbar />
-      <main className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6">
-        <h1 className="text-2xl font-bold text-slate-900">Search Papers</h1>
+    <AppShell>
+      <div className="space-y-6">
+        <h1 className="font-serif text-2xl font-semibold text-text sm:text-3xl">Search Papers</h1>
 
-        <form onSubmit={handleSearch} className="flex gap-2">
+        <form onSubmit={handleSearch} className="flex flex-wrap gap-2">
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -70,12 +69,12 @@ export default function SearchPage() {
           </Button>
         </form>
 
-        {error && <p className="text-sm text-red-700">Error: {error}</p>}
+        {error && <p className="text-sm text-danger">Error: {error}</p>}
 
         {searched && results.length === 0 && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-text-muted">
             No papers found for &quot;{query}&quot;. Try a different code or{" "}
-            <Link href="/upload" className="text-indigo-600 hover:underline">
+            <Link href="/upload" className="text-accent hover:underline">
               upload one yourself
             </Link>
             .
@@ -85,7 +84,7 @@ export default function SearchPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {results.map((paper) => (
             <Link key={paper.id} href={`/papers/${paper.id}`} className="block">
-              <Card className="h-full transition hover:-translate-y-0.5 hover:shadow-md">
+              <Card variant="interactive" className="h-full">
                 <CardHeader>
                   <CardTitle className="text-base">{paper.subject_name}</CardTitle>
                   <CardDescription>
@@ -96,7 +95,7 @@ export default function SearchPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-text-muted">
                     {paper.question_count} question{paper.question_count !== 1 ? "s" : ""}
                   </p>
                 </CardContent>
@@ -104,7 +103,7 @@ export default function SearchPage() {
             </Link>
           ))}
         </div>
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }

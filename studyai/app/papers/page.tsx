@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 
-import { Navbar } from "@/components/Navbar";
+import { AppShell } from "@/components/AppShell";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 
@@ -52,30 +54,26 @@ export default function MyPapersPage() {
   }, [router]);
 
   return (
-    <>
-      <Navbar />
-      <main className="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">My Papers</h1>
-          <Link
-            href="/upload"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-          >
-            + Upload paper
-          </Link>
+    <AppShell>
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="font-serif text-2xl font-semibold text-text sm:text-3xl">My Papers</h1>
+          <Button asChild className="gap-1">
+            <Link href="/upload">
+              <Plus className="h-4 w-4" />
+              Upload paper
+            </Link>
+          </Button>
         </div>
 
-        {loading && <p className="text-sm text-slate-500">Loading your papers...</p>}
+        {loading && <p className="text-sm text-text-muted">Loading your papers…</p>}
 
-        {error && <p className="text-sm text-red-700">Error: {error}</p>}
+        {error && <p className="text-sm text-danger">Error: {error}</p>}
 
         {!loading && !error && papers.length === 0 && (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-            <p className="text-slate-500">You haven&apos;t uploaded any papers yet.</p>
-            <Link
-              href="/upload"
-              className="mt-3 inline-block text-sm font-medium text-indigo-600 hover:underline"
-            >
+          <div className="rounded-lg border border-dashed border-border bg-surface p-10 text-center">
+            <p className="text-text-muted">You haven&apos;t uploaded any papers yet.</p>
+            <Link href="/upload" className="mt-3 inline-block text-sm font-medium text-accent hover:underline">
               Upload your first paper →
             </Link>
           </div>
@@ -84,7 +82,7 @@ export default function MyPapersPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {papers.map((paper) => (
             <Link key={paper.id} href={`/papers/${paper.id}`} className="block">
-              <Card className="h-full transition hover:-translate-y-0.5 hover:shadow-md">
+              <Card variant="interactive" className="h-full">
                 <CardHeader>
                   <CardTitle className="text-base">{paper.subject_name}</CardTitle>
                   <CardDescription>
@@ -95,10 +93,10 @@ export default function MyPapersPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-text-muted">
                     {paper.question_count} question{paper.question_count !== 1 ? "s" : ""}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-text-muted">
                     Uploaded {new Date(paper.created_at).toLocaleDateString()}
                   </p>
                 </CardContent>
@@ -106,7 +104,7 @@ export default function MyPapersPage() {
             </Link>
           ))}
         </div>
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }

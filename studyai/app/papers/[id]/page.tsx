@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AnswerForm } from "@/components/AnswerForm";
 import type { MarkResult } from "@/components/AnswerForm";
-import { Navbar } from "@/components/Navbar";
+import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +30,8 @@ type Question = {
   marks_available: number;
   difficulty: "easy" | "medium" | "hard";
   marking_scheme: string | null;
+  image_url: string | null;
+  has_diagram: boolean;
 };
 
 type PastAttempt = {
@@ -55,6 +58,34 @@ function scoreColour(pct: number): string {
   if (pct >= 80) return "text-green-700";
   if (pct >= 50) return "text-yellow-700";
   return "text-red-700";
+}
+
+function InlineQuestionImage({
+  src,
+  alt,
+}: {
+  src: string;
+  alt: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <p className="text-xs text-text-muted">Diagram unavailable.</p>;
+  }
+  return (
+    <figure className="space-y-1">
+      <Image
+        src={src}
+        alt={alt}
+        width={1200}
+        height={800}
+        loading="lazy"
+        unoptimized
+        className="max-h-96 w-full rounded-lg border border-border bg-surface object-contain"
+        onError={() => setFailed(true)}
+      />
+      <figcaption className="text-xs text-text-muted">From the original paper</figcaption>
+    </figure>
+  );
 }
 
 function ResultsSummary({ results, questions }: ResultsSummaryProps) {
@@ -124,28 +155,71 @@ export default function PaperPage() {
         return;
       }
 
-      if (questionData && questionData.length > 0) {
-        const questionIds = questionData.map((q) => q.id);
-        const { data: attemptsData } = await supabase
+      const loadedQuestions = (questionData ?? []) as Question[];
+      const questionIds = loadedQuestions.map((q) => q.id);
+      const resultByQuestion: Record<string, MarkResult> = {};
+      if (questionIds.length > 0) {
+        const { data: attemptsData, error: attemptsError } = await supabase
           .from("attempts")
-          .select("id, question_id, score, max_score, percentage, feedback, created_at")
+          .select(
+            "id, question_id, answer_text, answer_image_path, needs_teacher_review, score, max_score, percentage, feedback, strengths, improvements, model_answer, xp_earned, created_at"
+          )
           .eq("user_id", user.id)
           .in("question_id", questionIds)
           .order("created_at", { ascending: false });
 
-        if (attemptsData) {
-          const grouped: Record<string, PastAttempt[]> = {};
-          for (const attempt of attemptsData) {
-            const qid = attempt.question_id as string;
-            if (!grouped[qid]) grouped[qid] = [];
-            grouped[qid].push(attempt as PastAttempt);
-          }
-          setPastAttempts(grouped);
+        if (attemptsError) {
+          setError(attemptsError.message);
+          setLoading(false);
+          return;
         }
+
+        const signedUrlByPath = new Map<string, string>();
+        for (const attempt of attemptsData ?? []) {
+          if (!attempt.answer_image_path || signedUrlByPath.has(attempt.answer_image_path)) {
+            continue;
+          }
+          const { data: signedData } = await supabase.storage
+            .from("answer-images")
+            .createSignedUrl(attempt.answer_image_path, 3600);
+          if (signedData?.signedUrl) {
+            signedUrlByPath.set(attempt.answer_image_path, signedData.signedUrl);
+          }
+        }
+
+        for (const attempt of attemptsData ?? []) {
+          if (resultByQuestion[attempt.question_id]) continue;
+          resultByQuestion[attempt.question_id] = {
+            score: attempt.score ?? 0,
+            maxScore: attempt.max_score ?? 0,
+            percentage: attempt.percentage ?? 0,
+            feedback: attempt.feedback ?? "",
+            strengths: attempt.strengths ?? [],
+            improvements: attempt.improvements ?? [],
+            modelAnswer: attempt.model_answer ?? "",
+            xpEarned: attempt.xp_earned ?? 0,
+            newStreak: 1,
+            answerText: attempt.answer_text ?? "",
+            answerImagePath: attempt.answer_image_path,
+            answerImageUrl: attempt.answer_image_path
+              ? signedUrlByPath.get(attempt.answer_image_path) ?? null
+              : null,
+            needsTeacherReview: attempt.needs_teacher_review ?? Boolean(attempt.answer_image_path),
+          };
+        }
+
+        const grouped: Record<string, PastAttempt[]> = {};
+        for (const attempt of attemptsData ?? []) {
+          const qid = attempt.question_id as string;
+          if (!grouped[qid]) grouped[qid] = [];
+          grouped[qid].push(attempt as PastAttempt);
+        }
+        setPastAttempts(grouped);
       }
 
       setPaper(paperData as Paper);
-      setQuestions((questionData ?? []) as Question[]);
+      setQuestions(loadedQuestions);
+      setResults(resultByQuestion);
       setLoading(false);
     }
 
@@ -158,33 +232,26 @@ export default function PaperPage() {
 
   if (loading) {
     return (
-      <>
-        <Navbar />
-        <main className="mx-auto w-full max-w-4xl p-4 sm:p-6">
-          <p className="text-sm text-slate-500">Loading paper...</p>
-        </main>
-      </>
+      <AppShell>
+        <p className="text-sm text-slate-500">Loading paper...</p>
+      </AppShell>
     );
   }
 
   if (error || !paper) {
     return (
-      <>
-        <Navbar />
-        <main className="mx-auto w-full max-w-4xl p-4 sm:p-6">
-          <p className="text-sm text-red-700">{error ?? "Something went wrong."}</p>
-          <Link href="/papers" className="mt-2 text-sm text-indigo-600 hover:underline">
-            Back to My Papers
-          </Link>
-        </main>
-      </>
+      <AppShell>
+        <p className="text-sm text-red-700">{error ?? "Something went wrong."}</p>
+        <Link href="/papers" className="mt-2 text-sm text-indigo-600 hover:underline">
+          Back to My Papers
+        </Link>
+      </AppShell>
     );
   }
 
   return (
-    <>
-      <Navbar />
-      <main className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6">
+    <AppShell>
+      <main className="mx-auto w-full max-w-4xl space-y-6">
         <div>
           <Link href="/papers" className="text-sm text-indigo-600 hover:underline">
             ← My Papers
@@ -231,6 +298,13 @@ export default function PaperPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-3">
+                  {q.image_url ? (
+                    <InlineQuestionImage
+                      src={q.image_url}
+                      alt={`Diagram for question ${q.question_number}`}
+                    />
+                  ) : null}
+
                   <p className="whitespace-pre-wrap text-sm text-slate-800">
                     {q.question_text}
                   </p>
@@ -307,6 +381,6 @@ export default function PaperPage() {
           </div>
         )}
       </main>
-    </>
+    </AppShell>
   );
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-import { generateGeminiContent } from "@/lib/gemini";
+import { authenticateRequest } from "@/lib/api-auth";
+import { buildAnalysePrompt, generateGeminiContent } from "@/lib/gemini";
+import { renderPdfPageToPng } from "@/lib/pdf-render";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type ExtractedQuestion = {
@@ -11,6 +12,8 @@ type ExtractedQuestion = {
   marksAvailable: number;
   difficulty: "easy" | "medium" | "hard";
   markingScheme: string | null;
+  hasDiagram: boolean;
+  diagramPage: number | null;
 };
 
 type LooseQuestion = {
@@ -27,6 +30,10 @@ type LooseQuestion = {
   difficulty?: string;
   markingScheme?: string | null;
   marking_scheme?: string | null;
+  hasDiagram?: boolean;
+  has_diagram?: boolean;
+  diagramPage?: number | string;
+  diagram_page?: number | string;
 };
 
 const SYLLABUS_NAMES: Record<string, string> = {
@@ -81,6 +88,18 @@ function normalizeQuestion(raw: LooseQuestion, index: number): ExtractedQuestion
       ? marksSource
       : Number.parseInt(String(marksSource), 10);
 
+  const rawHasDiagram = raw.hasDiagram ?? raw.has_diagram;
+  const hasDiagram = rawHasDiagram === true;
+  const diagramSource = raw.diagramPage ?? raw.diagram_page;
+  const diagramPageParsed =
+    typeof diagramSource === "number"
+      ? diagramSource
+      : Number.parseInt(String(diagramSource ?? ""), 10);
+  const diagramPage =
+    hasDiagram && Number.isFinite(diagramPageParsed) && diagramPageParsed > 0
+      ? diagramPageParsed
+      : null;
+
   return {
     questionNumber:
       raw.questionNumber?.trim() ||
@@ -97,6 +116,8 @@ function normalizeQuestion(raw: LooseQuestion, index: number): ExtractedQuestion
     difficulty: normalizeDifficulty(raw.difficulty ?? "medium"),
     markingScheme:
       raw.markingScheme?.trim() ?? raw.marking_scheme?.trim() ?? null,
+    hasDiagram: hasDiagram && diagramPage !== null,
+    diagramPage,
   };
 }
 
@@ -159,6 +180,11 @@ function normalizeDifficulty(value: string): "easy" | "medium" | "hard" {
 
 export async function POST(request: Request) {
   try {
+    const auth = await authenticateRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.message }, { status: auth.status });
+    }
+
     const formData = await request.formData();
     const syllabusCode = String(formData.get("syllabusCode") ?? "").trim();
     const yearRaw = formData.get("year");
@@ -185,26 +211,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Only PDF files are allowed." }, { status: 400 });
     }
 
-    const authHeader = request.headers.get("authorization");
-    const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized. Missing token." }, { status: 401 });
-    }
-
-    const supabaseAuth = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser(token);
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
     const createdPaperIds: string[] = [];
     let totalExtractedQuestions = 0;
 
@@ -212,30 +218,8 @@ export async function POST(request: Request) {
       const bytes = await file.arrayBuffer();
       const base64 = Buffer.from(bytes).toString("base64");
 
-      const prompt = `You are extracting Cambridge exam questions from a PDF.
-Return ONLY valid JSON with this exact shape:
-{
-  "questions": [
-    {
-      "questionNumber": "1(a)",
-      "questionText": "full question text",
-      "topic": "specific Cambridge syllabus topic name",
-      "marksAvailable": 4,
-      "difficulty": "easy|medium|hard",
-      "markingScheme": "marking guidance or null"
-    }
-  ]
-}
-
-Rules:
-- No markdown, no explanation, no code fences.
-- Include every visible question in order.
-- marksAvailable must be a number.
-- difficulty must be one of easy, medium, hard.
-- If unsure about marking scheme, return null.`;
-
       const { result } = await generateGeminiContent([
-        { text: prompt },
+        { text: buildAnalysePrompt() },
         {
           inlineData: {
             mimeType: "application/pdf",
@@ -252,7 +236,7 @@ Rules:
       const { data: paperRow, error: paperError } = await supabaseAdmin
         .from("past_papers")
         .insert({
-          uploaded_by: user.id,
+          uploaded_by: auth.userId,
           subject_name: subjectName,
           syllabus_code: syllabusCode,
           year,
@@ -269,18 +253,64 @@ Rules:
         );
       }
 
-      const questionRows = extractedQuestions.map((question, index) => ({
-        paper_id: paperRow.id,
-        question_number:
-          question.questionNumber?.trim() || String(index + 1),
-        question_text: question.questionText?.trim() || "Question text unavailable",
-        topic: question.topic?.trim() || "General",
-        marks_available: Number.isFinite(question.marksAvailable)
-          ? Number(question.marksAvailable)
-          : 0,
-        difficulty: normalizeDifficulty(question.difficulty ?? "medium"),
-        marking_scheme: question.markingScheme?.trim() || null,
-      }));
+      const pdfBytes = new Uint8Array(bytes);
+      const uniqueDiagramPages = new Set<number>();
+      for (const question of extractedQuestions) {
+        if (question.hasDiagram && question.diagramPage) {
+          uniqueDiagramPages.add(question.diagramPage);
+        }
+      }
+
+      const uploadedPageAssets = new Map<number, { path: string; url: string }>();
+      for (const page of uniqueDiagramPages) {
+        const path = `${paperRow.id}/page-${page}.png`;
+        try {
+          const pngBuffer = await renderPdfPageToPng(pdfBytes, page);
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from("question-images")
+            .upload(path, pngBuffer, {
+              contentType: "image/png",
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.warn(`[analyse] Failed to upload diagram page ${page}: ${uploadError.message}`);
+            continue;
+          }
+
+          const {
+            data: { publicUrl },
+          } = supabaseAdmin.storage.from("question-images").getPublicUrl(path);
+          if (publicUrl) {
+            uploadedPageAssets.set(page, { path, url: publicUrl });
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unknown render error";
+          console.warn(`[analyse] Failed to render/upload page ${page}: ${message}`);
+        }
+      }
+
+      const questionRows = extractedQuestions.map((question, index) => {
+        const diagramAsset =
+          question.hasDiagram && question.diagramPage
+            ? uploadedPageAssets.get(question.diagramPage) ?? null
+            : null;
+
+        return {
+          paper_id: paperRow.id,
+          question_number: question.questionNumber?.trim() || String(index + 1),
+          question_text: question.questionText?.trim() || "Question text unavailable",
+          topic: question.topic?.trim() || "General",
+          marks_available: Number.isFinite(question.marksAvailable)
+            ? Number(question.marksAvailable)
+            : 0,
+          difficulty: normalizeDifficulty(question.difficulty ?? "medium"),
+          marking_scheme: question.markingScheme?.trim() || null,
+          has_diagram: Boolean(diagramAsset),
+          image_url: diagramAsset?.url ?? null,
+          image_path: diagramAsset?.path ?? null,
+        };
+      });
 
       const { error: questionError } = await supabaseAdmin.from("questions").insert(questionRows);
       if (questionError) {
