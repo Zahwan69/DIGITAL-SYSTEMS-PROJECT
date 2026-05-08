@@ -57,7 +57,7 @@ function TextHoverBrand() {
 
 export function HeroBanner() {
   return (
-    <section id="home-hero-banner" className="relative -mt-16 min-h-[calc(100dvh+4rem)] overflow-hidden bg-surface-alt dark:bg-surface">
+    <section id="home-hero-banner" className="relative min-h-screen overflow-hidden bg-surface-alt dark:bg-surface">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_76%_28%,var(--color-surface),transparent_34%)]" aria-hidden />
       <OrbitalRings />
       <div className="absolute right-8 top-32 hidden w-60 rounded-2xl border border-border bg-surface/70 p-4 backdrop-blur md:block" aria-hidden>
@@ -73,7 +73,7 @@ export function HeroBanner() {
         </div>
       </div>
 
-      <div className="relative mx-auto flex min-h-[calc(100dvh+4rem)] max-w-7xl flex-col justify-end px-6 pb-24 pt-36 md:pb-32">
+      <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col justify-end px-6 pb-24 pt-40 md:pb-32">
         <div className="max-w-5xl">
           <TextHoverBrand />
           <p className="mt-8 text-sm font-medium uppercase tracking-wide text-text-muted">Past-paper practice</p>

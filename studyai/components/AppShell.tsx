@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 
+import { FloatingNavbar } from "@/components/aceternity/floating-navbar";
 import { Footer } from "@/components/Footer";
-import { Navbar } from "@/components/Navbar";
-import { Sidebar } from "@/components/Sidebar";
 import { supabase } from "@/lib/supabase";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,30 +21,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     void load();
   }, []);
 
-  useEffect(() => {
-    if (!sidebarOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setSidebarOpen(false);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sidebarOpen]);
-
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-      <Navbar
-        role={role}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((o) => !o)}
-      />
+      <FloatingNavbar authenticated role={role} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-row">
-        <Sidebar open={sidebarOpen} role={role} onClose={() => setSidebarOpen(false)} />
         <div
           id="main-content"
           className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
         >
           <div className="flex min-h-full w-full min-w-0 flex-col">
-            <div className="flex min-w-0 flex-1 flex-col px-6 pt-8">
+            <div className="flex min-w-0 flex-1 flex-col px-6 pt-28">
               <div className="mx-auto w-full max-w-6xl flex-1 min-w-0">{children}</div>
             </div>
             <Footer />
