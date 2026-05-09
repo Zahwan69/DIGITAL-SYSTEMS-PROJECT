@@ -15,8 +15,7 @@ const footerGroups = [
     heading: "Resources",
     links: [
       { label: "Dashboard", href: "/dashboard" },
-      { label: "Upload", href: "/upload" },
-      { label: "Search", href: "/papers/search" },
+      { label: "Upload QP/MS", href: "/upload" },
     ],
   },
   {
@@ -53,7 +52,7 @@ export function LandingFooter() {
           {BRAND_NAME}
         </p>
         <p className="py-4 text-center text-xs text-text-muted">
-          &copy; {new Date().getFullYear()} {BRAND_NAME}
+          Made by Sulaiman Zahwan Latheef - &copy; {new Date().getFullYear()} {BRAND_NAME}
         </p>
       </div>
     </footer>

@@ -6,7 +6,6 @@ import {
   History,
   LayoutDashboard,
   Lightbulb,
-  Search,
   Upload,
   Users,
 } from "lucide-react";
@@ -16,8 +15,7 @@ export type AppRole = "student" | "teacher" | "admin";
 export const studentNavItems = [
   { href: "/dashboard", pathMatch: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/papers", pathMatch: "/papers", label: "My Papers", icon: BookOpen },
-  { href: "/upload", pathMatch: "/upload", label: "Upload", icon: Upload },
-  { href: "/papers/search", pathMatch: "/papers/search", label: "Search", icon: Search },
+  { href: "/upload", pathMatch: "/upload", label: "Upload QP/MS", icon: Upload },
 ] as const;
 
 export const teacherNavItems = [

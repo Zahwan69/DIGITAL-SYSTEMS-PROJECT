@@ -172,30 +172,11 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("xp, study_streak, last_study_date")
+      .select("xp, level")
       .eq("id", auth.userId)
       .single();
 
     const currentXp: number = profile?.xp ?? 0;
-    const currentStreak: number = profile?.study_streak ?? 0;
-    const lastStudyDate: string | null = profile?.last_study_date ?? null;
-
-    const today = new Date().toISOString().split("T")[0]!;
-    const yesterday = new Date();
-    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0]!;
-
-    let newStreak = currentStreak;
-
-    if (lastStudyDate === today) {
-      // no streak change
-    } else if (lastStudyDate === yesterdayStr) {
-      newStreak = currentStreak + 1;
-      if (newStreak === 3) xpEarned += 50;
-      if (newStreak === 7) xpEarned += 150;
-    } else {
-      newStreak = 1;
-    }
 
     const { data: paperQuestions, error: paperQuestionsError } = await supabaseAdmin
       .from("questions")
@@ -283,14 +264,20 @@ export async function POST(request: Request) {
       }
     }
 
-    await supabaseAdmin
+    const newXp = currentXp + xpEarned;
+    const newLevel = Math.floor(newXp / 500) + 1;
+
+    const { error: profileUpdateError } = await supabaseAdmin
       .from("profiles")
       .update({
-        xp: currentXp + xpEarned,
-        study_streak: newStreak,
-        last_study_date: today,
+        xp: newXp,
+        level: newLevel,
       })
       .eq("id", auth.userId);
+
+    if (profileUpdateError) {
+      return NextResponse.json({ error: profileUpdateError.message }, { status: 500 });
+    }
 
     let answerImageUrl: string | null = null;
     if (answerImagePath) {
@@ -309,7 +296,7 @@ export async function POST(request: Request) {
       improvements: marking.improvements,
       modelAnswer: marking.model_answer,
       xpEarned,
-      newStreak,
+      newStreak: 0,
       paperCompleted,
       answerText,
       answerImagePath,

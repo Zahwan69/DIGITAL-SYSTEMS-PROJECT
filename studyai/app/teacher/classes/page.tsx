@@ -84,7 +84,7 @@ function ClassesInner() {
                   <CardContent className="pt-5 sm:pt-6">
                     <p className="font-semibold text-text">{cls.name}</p>
                     <p className="mt-1 text-xs text-text-muted">
-                      Join <span className="font-mono font-medium text-accent">{cls.join_code}</span>
+                      Join <span className="font-mono font-medium text-text">{cls.join_code}</span>
                     </p>
                     <p className="mt-3 text-sm text-text-muted">
                       {cls.member_count} member{cls.member_count !== 1 ? "s" : ""}

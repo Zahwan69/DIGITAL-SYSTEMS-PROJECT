@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, ClipboardList, Flame, Plus, Search, Upload } from "lucide-react";
+import { BookOpen, ClipboardList, Flame, Plus, Upload } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
@@ -49,15 +49,9 @@ type Invite = {
 
 const quickActions: QuickAction[] = [
   {
-    icon: <Search className="h-5 w-5" />,
-    title: "Search Papers",
-    description: "Find papers by syllabus code, year, and subject.",
-    href: "/papers/search",
-  },
-  {
     icon: <Upload className="h-5 w-5" />,
-    title: "Upload Paper",
-    description: "Upload a past paper PDF and extract questions with AI.",
+    title: "Upload QP/MS",
+    description: "Upload a question paper and mark scheme to create practice questions.",
     href: "/upload",
   },
   {
@@ -79,11 +73,6 @@ const xpRules = [
 export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [stats, setStats] = useState<{
-    papersUploaded: number;
-    questionsAttempted: number;
-    bestScore: number | null;
-  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,32 +135,6 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
-
-      const [papersResult, attemptsCountResult, bestScoreResult] = await Promise.all([
-        supabase
-          .from("past_papers")
-          .select("id", { count: "exact", head: true })
-          .eq("uploaded_by", user.id),
-        supabase
-          .from("attempts")
-          .select("question_id", { count: "exact", head: true })
-          .eq("user_id", user.id),
-        supabase
-          .from("attempts")
-          .select("percentage")
-          .eq("user_id", user.id)
-          .order("percentage", { ascending: false })
-          .limit(1),
-      ]);
-
-      setStats({
-        papersUploaded: papersResult.error ? 0 : papersResult.count ?? 0,
-        questionsAttempted: attemptsCountResult.error ? 0 : attemptsCountResult.count ?? 0,
-        bestScore:
-          bestScoreResult.error || !bestScoreResult.data?.[0]
-            ? null
-            : bestScoreResult.data[0].percentage,
-      });
 
       setProfile(profileData as Profile);
       setLoading(false);
@@ -279,7 +242,7 @@ export default function DashboardPage() {
         <p className="text-sm text-text-muted">
           {profile?.role === "teacher"
             ? "Your student tools live here; open Teacher overview in the sidebar when you’re running a class."
-            : "Upload papers, get AI marking feedback, and join your teacher’s classes from this home."}
+            : "Upload QP/MS files, get AI marking feedback, and join your teacher’s classes from this home."}
         </p>
 
         <Hoverable>
@@ -300,7 +263,7 @@ export default function DashboardPage() {
               {xpInLevel} / 500 XP to Level {nextLevel}
             </p>
             <p className="flex items-center gap-2 text-sm font-medium text-text">
-              <Flame className="h-4 w-4 text-accent" aria-hidden />
+              <Flame className="h-4 w-4 text-text" aria-hidden />
               Study streak: {streak} day(s)
             </p>
           </CardContent>
@@ -376,35 +339,6 @@ export default function DashboardPage() {
             {joinError && <p className="mt-2 text-sm text-danger">{joinError}</p>}
           </CardContent>
         </Card>
-        <section className="grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              label: "Papers uploaded",
-              value: stats?.papersUploaded ?? 0,
-              suffix: "",
-            },
-            {
-              label: "Questions attempted",
-              value: stats?.questionsAttempted ?? 0,
-              suffix: "",
-            },
-            {
-              label: "Best score",
-              value: stats?.bestScore ?? null,
-              suffix: "%",
-            },
-          ].map((stat) => (
-            <Card key={stat.label}>
-              <CardContent className="pt-6">
-                <p className="text-3xl font-bold text-indigo-600">
-                  {stat.value !== null ? `${stat.value}${stat.suffix}` : "—"}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">{stat.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </section>
-
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
@@ -430,7 +364,7 @@ export default function DashboardPage() {
                       <p className="font-semibold text-text">{a.title}</p>
                       <Link
                         href={`/papers/${a.paper_id}`}
-                        className="text-xs font-medium text-accent hover:underline"
+                        className="text-xs font-medium text-text hover:underline"
                       >
                         Start →
                       </Link>

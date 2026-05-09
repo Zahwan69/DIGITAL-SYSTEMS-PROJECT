@@ -1,8 +1,6 @@
-import Link from "next/link";
-
+import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
-import { Button } from "@/components/ui/button";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -62,10 +60,9 @@ export default function AboutPage() {
 
           <Section title="Who built it">
             <p>
-              UWE Bristol BSc final-year project.
+              Made by Sulaiman Zahwan Latheef.
               <br />
-              UFCFXK-30-3, Digital Systems Project, 2025-2026. This is a degree artefact built in public, not a venture
-              product.
+              StudyAI is a final-year Digital Systems Project built as an academic artefact, not a venture product.
             </p>
           </Section>
 
@@ -78,22 +75,9 @@ export default function AboutPage() {
             </ul>
           </section>
 
-          <section className="rounded-xl border border-border bg-surface p-6">
-            <h2 className="text-[28px] font-semibold leading-tight tracking-[-0.01em] text-text">Try the demo path.</h2>
-            <p className="mt-4 text-base leading-[1.65] text-text-muted">
-              Start with an account, or read the walkthrough first if you want to see the flow before signing up.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button asChild>
-                <Link href="/auth/signup">Get started free</Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link href="/how-it-works">How it works</Link>
-              </Button>
-            </div>
-          </section>
         </div>
       </div>
+      <LandingCTA className="pt-0" />
       <LandingFooter />
     </main>
   );

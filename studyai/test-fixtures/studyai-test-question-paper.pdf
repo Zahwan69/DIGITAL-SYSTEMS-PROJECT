@@ -1,0 +1,80 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Length 846 >>
+stream
+BT
+/F1 11 Tf
+14 TL
+50 790 Td
+/F1 18 Tf
+(StudyAI Test Question Paper) Tj
+/F1 11 Tf
+/F1 12 Tf
+T*
+(Syllabus 0478 / 0580 - Parser Smoke Test) Tj
+/F1 11 Tf
+0 -12 Td
+(Answer all questions. This paper is intentionally short for upload and parser testing.) Tj
+0 -18 Td
+/F1 12 Tf
+(1  Which logic gate gives an output of 1 only when both inputs are 1? [1]) Tj
+/F1 11 Tf
+T*
+(A  OR) Tj
+T*
+(B  AND) Tj
+T*
+(C  XOR) Tj
+T*
+(D  NOT) Tj
+0 -14 Td
+/F1 12 Tf
+(2  Solve 3x + 7 = 22. Show your working. [3]) Tj
+/F1 11 Tf
+0 -14 Td
+/F1 12 Tf
+(3  Complete the truth table for A AND B. [4]) Tj
+/F1 11 Tf
+T*
+(A    B    Output) Tj
+T*
+(0    0    ........) Tj
+T*
+(0    1    ........) Tj
+T*
+(1    0    ........) Tj
+T*
+(1    1    ........) Tj
+0 -14 Td
+/F1 12 Tf
+(4  A student says that using a mark scheme after every attempt is useful. Give two reasons why. [2]) Tj
+/F1 11 Tf
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000001088 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1214
+%%EOF

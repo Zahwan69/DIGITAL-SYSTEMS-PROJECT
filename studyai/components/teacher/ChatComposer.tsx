@@ -31,7 +31,7 @@ export function ChatComposer({ value, onChange, onSend, disabled, placeholder }:
   }
 
   return (
-    <div className="border-t border-border bg-surface p-4">
+    <div className="shrink-0 border-t border-border bg-surface p-4">
       <div className="mx-auto flex max-w-3xl items-end gap-3 rounded-xl border border-border bg-surface p-2 shadow-sm">
         <textarea
           ref={ref}

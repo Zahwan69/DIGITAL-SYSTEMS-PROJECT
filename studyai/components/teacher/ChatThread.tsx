@@ -13,7 +13,7 @@ export type ChatMessage = {
 
 export function ChatThread({ messages, loading }: { messages: ChatMessage[]; loading?: boolean }) {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
       {messages.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface p-6 text-sm leading-relaxed text-text-muted">
           Start a new class chat. Answers are limited to the class snapshot StudyAI sends with each request.
@@ -25,7 +25,7 @@ export function ChatThread({ messages, loading }: { messages: ChatMessage[]; loa
           <article
             key={message.id}
             className={cn(
-              "rounded-xl border border-border p-4 text-sm leading-relaxed",
+              "break-words rounded-xl border border-border p-4 text-sm leading-relaxed",
               message.role === "assistant" ? "bg-accent-soft text-text" : "ml-auto max-w-[85%] bg-surface text-text"
             )}
           >

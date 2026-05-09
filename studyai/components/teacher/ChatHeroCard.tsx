@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { HoverBorderGradient } from "@/components/aceternity/hover-border-gradient";
 import { SpotlightCard } from "@/components/effects/SpotlightCard";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -14,9 +13,9 @@ type TeacherClass = {
 };
 
 const suggestions = [
-  "How is 9A doing this week?",
-  "Which topics are weakest in IGCSE Maths?",
-  "Who needs help right now?",
+  "Show class-wide weak topics",
+  "Which students need help right now?",
+  "How is the class doing this week?",
 ];
 
 export function ChatHeroCard() {
@@ -84,15 +83,16 @@ export function ChatHeroCard() {
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {suggestions.map((suggestion) => (
-              <button
+              <Button
                 key={suggestion}
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => openChat(suggestion)}
                 disabled={!classId}
-                className="disabled:opacity-50"
               >
-                <HoverBorderGradient>{suggestion}</HoverBorderGradient>
-              </button>
+                {suggestion}
+              </Button>
             ))}
           </div>
         </div>

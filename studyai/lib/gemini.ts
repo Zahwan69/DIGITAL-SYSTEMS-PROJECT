@@ -59,7 +59,11 @@ export type MarkInput = {
   answerImage?: { mimeType: string; base64: string } | null;
 };
 
-export function buildAnalysePrompt(): string {
+export function buildAnalysePrompt(options: { hasMarkScheme?: boolean } = {}): string {
+  const markSchemeRule = options.hasMarkScheme
+    ? "- An official mark scheme PDF is included after the question paper. Use it to populate markingScheme for each matching question. Keep the wording concise but specific enough for marking."
+    : "- No official mark scheme PDF is included. If unsure about marking scheme, return null.";
+
   return `You are extracting Cambridge exam questions from a PDF.
 Return ONLY valid JSON with this exact shape:
 {
@@ -72,7 +76,8 @@ Return ONLY valid JSON with this exact shape:
       "difficulty": "easy|medium|hard",
       "markingScheme": "marking guidance or null",
       "hasDiagram": true,
-      "diagramPage": 4
+      "diagramPage": 4,
+      "diagramBoundingBox": [y_min, x_min, y_max, x_max]
     }
   ]
 }
@@ -82,10 +87,11 @@ Rules:
 - Include every visible question in order.
 - marksAvailable must be a number.
 - difficulty must be one of easy, medium, hard.
-- If unsure about marking scheme, return null.
-- hasDiagram must be true when the question depends on a visual element (figure, graph, circuit, table, photo), otherwise false.
+${markSchemeRule}
+- hasDiagram must be true when the question depends on a visual element (figure, graph, circuit, diagram, photo), otherwise false. Tables of plain text are NOT diagrams.
 - diagramPage must be the 1-indexed page number containing that visual when hasDiagram is true.
-- Omit diagramPage when hasDiagram is false.`;
+- diagramBoundingBox: when hasDiagram is true, return a tight bounding box around just the diagram (NOT the question text), normalized to 0-1000 of the page. Format: [y_min, x_min, y_max, x_max], where 0,0 is top-left and 1000,1000 is bottom-right of the page. Pad ~2-3% so the figure isn't clipped. If you cannot locate the diagram precisely, omit diagramBoundingBox entirely (do not guess; do not return [0,0,1000,1000]).
+- Omit diagramPage and diagramBoundingBox when hasDiagram is false.`;
 }
 
 export function buildMarkPrompt(input: MarkInput): string {
@@ -103,6 +109,11 @@ Student's written answer:
 ${input.answerText || "(no text provided)"}
 
 The student's answer may include written text plus one attachment: a photograph/image or a PDF of their working (handwriting, a labelled diagram, a graph plotted on paper, or a hand-drawn figure). Mark the combined answer. If a feature is only legible in the attachment, mark from the attachment. If the text and attachment contradict, prefer the more complete representation in the attachment. Penalise illegibility only if the legible portion is itself wrong.
+
+Marking rules:
+- Award marks only for answer content that directly answers the question.
+- Do not give credit for generic or evasive answers such as "shows answer", "shown above", "the answer", "I don't know", or copied question text unless they also include the correct answer.
+- For multiple-choice answers, a single letter such as A, B, C, or D is a valid answer only if it matches the correct option from the question or mark scheme.
 
 Return ONLY valid JSON with no markdown fences:
 {

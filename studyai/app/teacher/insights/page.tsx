@@ -49,7 +49,7 @@ function heatOpacity(pct: number): string {
   if (pct >= 60) return "bg-accent/90 text-text-on-accent";
   if (pct >= 40) return "bg-accent/60 text-text-on-accent";
   if (pct >= 20) return "bg-accent/35 text-text";
-  return "bg-accent-soft text-accent";
+  return "bg-accent-soft text-text";
 }
 
 function InsightsInner() {

@@ -56,6 +56,12 @@ export async function proxy(request: NextRequest) {
       const redirectUrl = new URL(role === "admin" ? "/admin/dashboard" : "/dashboard", request.url);
       return NextResponse.redirect(redirectUrl);
     }
+
+    // Teachers always land on the unified teacher dashboard, never the
+    // student-only /dashboard page.
+    if (pathname === "/dashboard" && role === "teacher") {
+      return NextResponse.redirect(new URL("/teacher/dashboard", request.url));
+    }
   }
 
   return supabaseResponse;

@@ -11,7 +11,6 @@ import {
   History,
   LayoutDashboard,
   Lightbulb,
-  Search,
   ShieldCheck,
   Upload,
   Users,
@@ -51,7 +50,7 @@ function HLink({
       onClick={onNavigate}
       className={cn(
         "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm font-medium text-text-muted transition-colors hover:bg-surface-alt hover:text-text",
-        active && "bg-accent-soft/60 text-accent"
+        active && "bg-accent-soft/60 text-text"
       )}
     >
       <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
@@ -91,7 +90,6 @@ const studentItems = [
   { href: "/dashboard", pathMatch: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/papers", pathMatch: "/papers", label: "Papers", icon: BookOpen },
   { href: "/upload", pathMatch: "/upload", label: "Upload", icon: Upload },
-  { href: "/papers/search", pathMatch: "/papers/search", label: "Search", icon: Search },
 ] as const;
 
 type HorizontalShellNavProps = {

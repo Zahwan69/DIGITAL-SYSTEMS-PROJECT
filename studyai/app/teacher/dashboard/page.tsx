@@ -20,6 +20,7 @@ import { BentoGrid } from "@/components/aceternity/bento-grid";
 import { Hoverable } from "@/components/effects/Hoverable";
 import { RingHover } from "@/components/effects/RingHover";
 import { ChatHeroCard } from "@/components/teacher/ChatHeroCard";
+import { PersonalStudyCard } from "@/components/teacher/PersonalStudyCard";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -203,6 +204,8 @@ function TeacherDashboardInner() {
       <div className="space-y-10">
         <ChatHeroCard />
 
+        <PersonalStudyCard />
+
         <div>
           <h1 className="font-serif text-2xl font-semibold tracking-tight text-text sm:text-3xl">
             Teacher overview
@@ -350,7 +353,7 @@ function TeacherDashboardInner() {
                     <div>
                       <p className="font-medium text-text">{cls.name}</p>
                       <p className="text-xs text-text-muted">
-                        Code <span className="font-mono font-semibold text-accent">{cls.join_code}</span>
+                        Code <span className="font-mono font-semibold text-text">{cls.join_code}</span>
                       </p>
                     </div>
                     <div className="flex gap-4 text-right text-xs tabular-nums text-text-muted">
@@ -396,7 +399,7 @@ function TeacherDashboardInner() {
                       <span className="tabular-nums text-text">{Math.round(a.percentage)}%</span>
                       <Link
                         href={`/papers/${a.paperId}`}
-                        className="text-xs font-medium text-accent hover:underline"
+                        className="text-xs font-medium text-text hover:underline"
                       >
                         View paper
                       </Link>

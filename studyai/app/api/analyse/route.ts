@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/api-auth";
 import { buildAnalysePrompt, generateGeminiContent } from "@/lib/gemini";
-import { renderPdfPageToPng } from "@/lib/pdf-render";
+import { cropPng, renderPdfPageToPng } from "@/lib/pdf-render";
+import { ensureBucket } from "@/lib/storage-buckets";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+
+type BoundingBox = [number, number, number, number]; // [y_min, x_min, y_max, x_max] normalized 0-1000
 
 type ExtractedQuestion = {
   questionNumber: string;
@@ -14,6 +17,7 @@ type ExtractedQuestion = {
   markingScheme: string | null;
   hasDiagram: boolean;
   diagramPage: number | null;
+  diagramBoundingBox: BoundingBox | null;
 };
 
 type LooseQuestion = {
@@ -34,7 +38,25 @@ type LooseQuestion = {
   has_diagram?: boolean;
   diagramPage?: number | string;
   diagram_page?: number | string;
+  diagramBoundingBox?: unknown;
+  diagram_bounding_box?: unknown;
+  bbox?: unknown;
 };
+
+function parseBoundingBox(raw: unknown): BoundingBox | null {
+  if (!Array.isArray(raw) || raw.length !== 4) return null;
+  const numbers = raw.map((value) =>
+    typeof value === "number" ? value : Number.parseFloat(String(value))
+  );
+  if (!numbers.every((n) => Number.isFinite(n))) return null;
+  const [yMin, xMin, yMax, xMax] = numbers as [number, number, number, number];
+  if (xMin < 0 || yMin < 0 || xMax > 1000 || yMax > 1000) return null;
+  if (xMax - xMin < 20 || yMax - yMin < 20) return null;
+  // Reject boxes covering >85% of the page — almost always hallucinated
+  const area = (xMax - xMin) * (yMax - yMin);
+  if (area > 850_000) return null;
+  return [yMin, xMin, yMax, xMax];
+}
 
 const SYLLABUS_NAMES: Record<string, string> = {
   "0417": "Information & Communication Technology",
@@ -100,6 +122,10 @@ function normalizeQuestion(raw: LooseQuestion, index: number): ExtractedQuestion
       ? diagramPageParsed
       : null;
 
+  const bboxRaw = raw.diagramBoundingBox ?? raw.diagram_bounding_box ?? raw.bbox;
+  const diagramBoundingBox =
+    hasDiagram && diagramPage !== null ? parseBoundingBox(bboxRaw) : null;
+
   return {
     questionNumber:
       raw.questionNumber?.trim() ||
@@ -118,6 +144,7 @@ function normalizeQuestion(raw: LooseQuestion, index: number): ExtractedQuestion
       raw.markingScheme?.trim() ?? raw.marking_scheme?.trim() ?? null,
     hasDiagram: hasDiagram && diagramPage !== null,
     diagramPage,
+    diagramBoundingBox,
   };
 }
 
@@ -178,6 +205,11 @@ function normalizeDifficulty(value: string): "easy" | "medium" | "hard" {
   return "medium";
 }
 
+function isPdfUpload(file: File) {
+  if (/\.pdf$/i.test(file.name)) return true;
+  return /pdf/i.test(file.type);
+}
+
 export async function POST(request: Request) {
   try {
     const auth = await authenticateRequest(request);
@@ -193,6 +225,10 @@ export async function POST(request: Request) {
 
     const uploaded = formData.getAll("files");
     const files = uploaded.filter((value): value is File => value instanceof File);
+    const markSchemeUploads = formData.getAll("markSchemeFiles");
+    const markSchemeFiles = markSchemeUploads.filter(
+      (value): value is File => value instanceof File
+    );
 
     if (!syllabusCode) {
       return NextResponse.json({ error: "Syllabus code is required." }, { status: 400 });
@@ -206,27 +242,77 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "You can upload up to 10 PDF files." }, { status: 400 });
     }
 
-    const hasNonPdf = files.some((file) => file.type !== "application/pdf");
+    if (markSchemeFiles.length > 10) {
+      return NextResponse.json(
+        { error: "You can upload up to 10 mark scheme PDF files." },
+        { status: 400 }
+      );
+    }
+
+    if (markSchemeFiles.length > 1 && markSchemeFiles.length !== files.length) {
+      return NextResponse.json(
+        {
+          error:
+            "Upload one mark scheme for all question papers, or one mark scheme for each question paper.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const hasNonPdf = [...files, ...markSchemeFiles].some((file) => !isPdfUpload(file));
     if (hasNonPdf) {
       return NextResponse.json({ error: "Only PDF files are allowed." }, { status: 400 });
     }
 
     const createdPaperIds: string[] = [];
     let totalExtractedQuestions = 0;
+    const diagramWarnings: string[] = [];
 
-    for (const file of files) {
+    try {
+      await ensureBucket("question-images", { public: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown bucket error";
+      return NextResponse.json(
+        {
+          error: `Cannot prepare diagram storage: ${message}. Create a public bucket named "question-images" in Supabase Storage and try again.`,
+        },
+        { status: 500 }
+      );
+    }
+
+    for (const [fileIndex, file] of files.entries()) {
       const bytes = await file.arrayBuffer();
       const base64 = Buffer.from(bytes).toString("base64");
+      const markSchemeFile =
+        markSchemeFiles.length === files.length
+          ? markSchemeFiles[fileIndex]
+          : markSchemeFiles[0] ?? null;
 
-      const { result } = await generateGeminiContent([
-        { text: buildAnalysePrompt() },
+      const promptParts: Parameters<typeof generateGeminiContent>[0] = [
+        { text: buildAnalysePrompt({ hasMarkScheme: Boolean(markSchemeFile) }) },
+        { text: "QUESTION PAPER PDF:" },
         {
           inlineData: {
             mimeType: "application/pdf",
             data: base64,
           },
         },
-      ]);
+      ];
+
+      if (markSchemeFile) {
+        const markSchemeBytes = await markSchemeFile.arrayBuffer();
+        promptParts.push(
+          { text: "OFFICIAL MARK SCHEME PDF:" },
+          {
+            inlineData: {
+              mimeType: "application/pdf",
+              data: Buffer.from(markSchemeBytes).toString("base64"),
+            },
+          }
+        );
+      }
+
+      const { result } = await generateGeminiContent(promptParts);
 
       const responseText = result.response.text();
       const extractedQuestions = parseQuestionsFromGemini(responseText);
@@ -254,47 +340,70 @@ export async function POST(request: Request) {
       }
 
       const pdfBytes = new Uint8Array(bytes);
-      const uniqueDiagramPages = new Set<number>();
-      for (const question of extractedQuestions) {
-        if (question.hasDiagram && question.diagramPage) {
-          uniqueDiagramPages.add(question.diagramPage);
+
+      // Cache page renders so we only render each unique page once, regardless
+      // of how many questions live on it.
+      const pageBuffers = new Map<number, Buffer>();
+      async function getPageBuffer(page: number): Promise<Buffer | null> {
+        if (pageBuffers.has(page)) return pageBuffers.get(page)!;
+        try {
+          const buf = await renderPdfPageToPng(pdfBytes, page);
+          pageBuffers.set(page, buf);
+          return buf;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "render failed";
+          diagramWarnings.push(`page ${page}: ${message}`);
+          return null;
         }
       }
 
-      const uploadedPageAssets = new Map<number, { path: string; url: string }>();
-      for (const page of uniqueDiagramPages) {
-        const path = `${paperRow.id}/page-${page}.png`;
-        try {
-          const pngBuffer = await renderPdfPageToPng(pdfBytes, page);
-          const { error: uploadError } = await supabaseAdmin.storage
-            .from("question-images")
-            .upload(path, pngBuffer, {
-              contentType: "image/png",
-              upsert: true,
-            });
+      // Per-question diagram assets — keyed by question index so the same
+      // page can yield different crops for different questions.
+      const questionAssets = new Map<number, { path: string; url: string }>();
 
-          if (uploadError) {
-            console.warn(`[analyse] Failed to upload diagram page ${page}: ${uploadError.message}`);
-            continue;
-          }
+      for (let i = 0; i < extractedQuestions.length; i += 1) {
+        const question = extractedQuestions[i];
+        if (!question.hasDiagram || !question.diagramPage) continue;
 
-          const {
-            data: { publicUrl },
-          } = supabaseAdmin.storage.from("question-images").getPublicUrl(path);
-          if (publicUrl) {
-            uploadedPageAssets.set(page, { path, url: publicUrl });
+        const pageBuffer = await getPageBuffer(question.diagramPage);
+        if (!pageBuffer) continue;
+
+        let buffer = pageBuffer;
+        let path = `${paperRow.id}/page-${question.diagramPage}.png`;
+
+        if (question.diagramBoundingBox) {
+          try {
+            buffer = await cropPng(pageBuffer, question.diagramBoundingBox);
+            const safeNumber = (question.questionNumber || String(i)).replace(/[^a-z0-9]+/gi, "_");
+            path = `${paperRow.id}/q-${safeNumber}.png`;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "crop failed";
+            diagramWarnings.push(`q${question.questionNumber}: ${message} (using full page)`);
+            buffer = pageBuffer;
+            path = `${paperRow.id}/page-${question.diagramPage}.png`;
           }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Unknown render error";
-          console.warn(`[analyse] Failed to render/upload page ${page}: ${message}`);
+        }
+
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from("question-images")
+          .upload(path, buffer, { contentType: "image/png", upsert: true });
+        if (uploadError) {
+          const detail = `q${question.questionNumber}: ${uploadError.message}`;
+          console.warn(`[analyse] ${detail}`);
+          diagramWarnings.push(detail);
+          continue;
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin.storage.from("question-images").getPublicUrl(path);
+        if (publicUrl) {
+          questionAssets.set(i, { path, url: publicUrl });
         }
       }
 
       const questionRows = extractedQuestions.map((question, index) => {
-        const diagramAsset =
-          question.hasDiagram && question.diagramPage
-            ? uploadedPageAssets.get(question.diagramPage) ?? null
-            : null;
+        const diagramAsset = questionAssets.get(index) ?? null;
 
         return {
           paper_id: paperRow.id,
@@ -306,7 +415,7 @@ export async function POST(request: Request) {
             : 0,
           difficulty: normalizeDifficulty(question.difficulty ?? "medium"),
           marking_scheme: question.markingScheme?.trim() || null,
-          has_diagram: Boolean(diagramAsset),
+          has_diagram: question.hasDiagram,
           image_url: diagramAsset?.url ?? null,
           image_path: diagramAsset?.path ?? null,
         };
@@ -330,6 +439,7 @@ export async function POST(request: Request) {
       paperIds: createdPaperIds,
       questionCount: totalExtractedQuestions,
       questionsExtracted: totalExtractedQuestions,
+      diagramWarnings: diagramWarnings.length > 0 ? diagramWarnings : undefined,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown server error";

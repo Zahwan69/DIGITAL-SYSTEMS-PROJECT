@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import { Hoverable } from "@/components/effects/Hoverable";
@@ -29,10 +30,14 @@ export function ChatSidebar({
   chats,
   activeChatId,
   onNewChat,
+  onDeleteChat,
+  deletingChatId,
 }: {
   chats: ChatListItem[];
   activeChatId?: string;
   onNewChat: () => void;
+  onDeleteChat?: (chat: ChatListItem) => void;
+  deletingChatId?: string | null;
 }) {
   const groups = chats.reduce<Record<string, ChatListItem[]>>((acc, chat) => {
     const key = `${chat.className} - ${groupLabel(chat.lastMessageAt)}`;
@@ -51,14 +56,36 @@ export function ChatSidebar({
             <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-text-muted">{group}</p>
             <div className="space-y-1">
               {rows.map((chat) => (
-                <Hoverable key={chat.id} disableMotion={activeChatId === chat.id} className={cn(activeChatId === chat.id && "bg-accent-soft")}>
+                <Hoverable
+                  key={chat.id}
+                  disableMotion={activeChatId === chat.id}
+                  className={cn(
+                    "group flex items-start gap-1",
+                    activeChatId === chat.id && "bg-accent-soft"
+                  )}
+                >
                   <Link
                     href={`/teacher/chat/${chat.id}`}
-                    className={cn("block px-3 py-2 text-sm text-text-muted", activeChatId === chat.id && "text-text")}
+                    className={cn(
+                      "block min-w-0 flex-1 px-3 py-2 text-sm text-text-muted",
+                      activeChatId === chat.id && "text-text"
+                    )}
                   >
                     <span className="line-clamp-1 font-medium">{chat.title}</span>
                     <span className="mt-0.5 block line-clamp-1 text-xs">{chat.className}</span>
                   </Link>
+                  {onDeleteChat ? (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteChat(chat)}
+                      disabled={deletingChatId === chat.id}
+                      className="mr-1 mt-1.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-muted opacity-100 transition-colors hover:bg-danger/10 hover:text-danger disabled:pointer-events-none disabled:opacity-40 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
+                      aria-label={`Delete chat ${chat.title}`}
+                      title="Delete chat"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  ) : null}
                 </Hoverable>
               ))}
             </div>

@@ -23,6 +23,7 @@ type ClassSummary = {
   name: string;
   join_code: string;
   created_at: string;
+  subject_id?: string | null;
 };
 
 type Member = {
@@ -58,6 +59,12 @@ type PaperOption = {
   syllabus_code: string;
 };
 
+type SubjectOption = {
+  id: string;
+  name: string;
+  syllabus_code: string | null;
+};
+
 type StudentResult = {
   id: string;
   username: string | null;
@@ -73,8 +80,15 @@ export default function ClassDetailPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [papers, setPapers] = useState<PaperOption[]>([]);
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [editClassName, setEditClassName] = useState("");
+  const [editSubjectId, setEditSubjectId] = useState("");
+  const [updatingClass, setUpdatingClass] = useState(false);
+  const [deletingClass, setDeletingClass] = useState(false);
+  const [classSettingsError, setClassSettingsError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [paperId, setPaperId] = useState("");
@@ -106,39 +120,52 @@ export default function ClassDetailPage() {
       return;
     }
 
-    const { data: classesData, error: classesError } = await supabase
-      .from("classes")
-      .select("id, name, join_code, created_at")
-      .eq("id", id)
-      .maybeSingle();
-    if (classesError || !classesData) {
-      setError("Class not found.");
-      setLoading(false);
-      return;
-    }
-    setClassInfo(classesData as ClassSummary);
-
     const headers = { Authorization: `Bearer ${token}` };
-    const [membersRes, assignmentsRes, invitesRes] = await Promise.all([
+    const [classRes, membersRes, assignmentsRes, invitesRes, subjectsRes] = await Promise.all([
+      fetch(`/api/teacher/classes/${id}`, { headers }),
       fetch(`/api/teacher/classes/${id}/members`, { headers }),
       fetch(`/api/teacher/classes/${id}/assignments`, { headers }),
       fetch(`/api/teacher/classes/${id}/invites`, { headers }),
+      fetch("/api/teacher/subjects", { headers }),
     ]);
 
-    const [membersJson, assignmentsJson, invitesJson] = await Promise.all([
-      membersRes.json(),
-      assignmentsRes.json(),
-      invitesRes.json(),
+    const [classJson, membersJson, assignmentsJson, invitesJson, subjectsJson] = await Promise.all([
+      classRes.json().catch(() => ({})),
+      membersRes.json().catch(() => ({})),
+      assignmentsRes.json().catch(() => ({})),
+      invitesRes.json().catch(() => ({})),
+      subjectsRes.json().catch(() => ({})),
     ]);
 
+    if (!classRes.ok) {
+      setError(classJson.error ?? "Class not found or not owned by you.");
+      setLoading(false);
+      return;
+    }
     if (!membersRes.ok) {
       setError(membersJson.error ?? "Failed to load members.");
       setLoading(false);
       return;
     }
+    if (!assignmentsRes.ok) {
+      setError(assignmentsJson.error ?? "Failed to load assignments.");
+      setLoading(false);
+      return;
+    }
+    if (!invitesRes.ok) {
+      setError(invitesJson.error ?? "Failed to load invites.");
+      setLoading(false);
+      return;
+    }
+
+    const nextClass = classJson.class as ClassSummary;
+    setClassInfo(nextClass);
+    setEditClassName(nextClass.name);
+    setEditSubjectId(nextClass.subject_id ?? "");
     setMembers(membersJson.members ?? []);
     setAssignments(assignmentsJson.assignments ?? []);
     setInvites(invitesJson.invites ?? []);
+    setSubjects(subjectsRes.ok ? subjectsJson.subjects ?? [] : []);
 
     const { data: papersData } = await supabase
       .from("past_papers")
@@ -263,7 +290,7 @@ export default function ClassDetailPage() {
         <p className="text-sm text-danger">{error ?? "Something went wrong."}</p>
         <Link
           href="/teacher/dashboard"
-          className="mt-2 inline-block text-sm text-accent hover:underline"
+          className="mt-2 inline-block text-sm text-text hover:underline"
         >
           ← Back to teacher dashboard
         </Link>
@@ -277,7 +304,7 @@ export default function ClassDetailPage() {
     <AppShell>
       <div className="space-y-6">
         <div>
-          <Link href="/teacher/dashboard" className="text-sm text-accent hover:underline">
+          <Link href="/teacher/dashboard" className="text-sm text-text hover:underline">
             ← Teacher dashboard
           </Link>
           <h1 className="mt-2 font-serif text-2xl font-semibold text-text sm:text-3xl">
@@ -285,7 +312,7 @@ export default function ClassDetailPage() {
           </h1>
           <p className="mt-1 text-sm text-text-muted">
             Join code:{" "}
-            <span className="font-mono font-semibold text-accent">{classInfo.join_code}</span> ·{" "}
+            <span className="font-mono font-semibold text-text">{classInfo.join_code}</span> ·{" "}
             {members.length} member{members.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -294,7 +321,7 @@ export default function ClassDetailPage() {
           <CardHeader>
             <CardTitle className="text-base">Create assignment</CardTitle>
             <CardDescription>
-              Assign a past paper to every student in this class.
+              Assign an existing paper, or upload a new QP/MS first.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -306,6 +333,7 @@ export default function ClassDetailPage() {
                 required
               />
               <select
+                id="paperId"
                 value={paperId}
                 onChange={(e) => setPaperId(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus-visible:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20"
@@ -318,6 +346,19 @@ export default function ClassDetailPage() {
                   </option>
                 ))}
               </select>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-text-muted">
+                  {papers.length === 0
+                    ? "No uploaded papers yet. Upload a QP/MS first, then come back to assign it."
+                    : "Need a new paper for this class?"}
+                </p>
+                <Link
+                  href={`/upload?returnTo=${encodeURIComponent(`/teacher/classes/${id}`)}`}
+                  className="text-xs font-medium text-text underline hover:text-text-muted"
+                >
+                  Upload QP/MS
+                </Link>
+              </div>
               <Textarea
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
@@ -359,7 +400,7 @@ export default function ClassDetailPage() {
                       <p className="font-semibold text-text">{a.title}</p>
                       <Link
                         href={`/papers/${a.paper_id}`}
-                        className="text-xs font-medium text-accent hover:underline"
+                        className="text-xs font-medium text-text hover:underline"
                       >
                         Open paper →
                       </Link>

@@ -3,7 +3,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export type ClassSnapshot = {
-  class: { id: string; name: string; subject?: { name: string; code: string; level: string } };
+  class: { id: string; name: string; subject?: { name: string; code: string | null; level: string | null } };
   generatedAt: string;
   windowDays: 30;
   roster: Array<{ studentLabel: string; xpTotal: number; xpLast30: number; lastActive: string | null }>;
@@ -39,13 +39,13 @@ export async function buildClassSnapshot(classId: string, teacherId: string): Pr
 
   const { data: classRow, error: classError } = await supabaseAdmin
     .from("classes")
-    .select("id, name, subject_id, subjects(name, code, level)")
+    .select("id, name, subject_id, subjects(name, syllabus_code, level)")
     .eq("id", classId)
     .eq("teacher_id", teacherId)
     .single();
 
   if (classError || !classRow) {
-    throw new Error("Class not found.");
+    throw new Error(classError?.message ?? "Class not found.");
   }
 
   const { data: members } = await supabaseAdmin
@@ -167,7 +167,7 @@ export async function buildClassSnapshot(classId: string, teacherId: string): Pr
       id: classRow.id,
       name: classRow.name,
       ...(subject
-        ? { subject: { name: subject.name, code: subject.code, level: subject.level } }
+        ? { subject: { name: subject.name, code: subject.syllabus_code ?? null, level: subject.level ?? null } }
         : {}),
     },
     generatedAt,

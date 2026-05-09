@@ -160,7 +160,7 @@ export function SubjectSwitcher() {
                 aria-selected={!subjectParam}
                 className={cn(
                   "w-full cursor-pointer px-3 py-2 text-left text-sm transition-colors hover:bg-accent-soft/30",
-                  !subjectParam && "bg-accent-soft/40 text-accent"
+                  !subjectParam && "bg-accent-soft/40 text-text"
                 )}
                 onClick={() => pick(null)}
               >
@@ -175,7 +175,7 @@ export function SubjectSwitcher() {
                   aria-selected={subjectParam === s.id}
                   className={cn(
                     "w-full cursor-pointer px-3 py-2 text-left text-sm transition-colors hover:bg-accent-soft/30",
-                    subjectParam === s.id && "bg-accent-soft/40 text-accent"
+                    subjectParam === s.id && "bg-accent-soft/40 text-text"
                   )}
                   onClick={() => pick(s.id)}
                 >

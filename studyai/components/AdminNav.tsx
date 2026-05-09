@@ -20,7 +20,7 @@ export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="space-y-1">
       <p className="mb-2 flex items-center gap-2 px-3 text-xs font-medium uppercase tracking-wide text-text-muted">
-        <ShieldCheck className="h-4 w-4 text-accent" aria-hidden />
+        <ShieldCheck className="h-4 w-4 text-text" aria-hidden />
         Admin
       </p>
       {items.map(({ href, pathMatch, label, icon: Icon }) => {
@@ -32,10 +32,10 @@ export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 border-l-2 border-transparent py-2 pl-[10px] pr-3 text-sm font-medium text-text transition-colors hover:bg-surface",
-              active && "border-accent bg-surface text-accent"
+              active && "border-accent bg-surface text-text"
             )}
           >
-            <Icon className={cn("h-5 w-5 text-text-muted", active && "text-accent")} aria-hidden />
+            <Icon className={cn("h-5 w-5 text-text-muted", active && "text-text")} aria-hidden />
             {label}
           </Link>
         );

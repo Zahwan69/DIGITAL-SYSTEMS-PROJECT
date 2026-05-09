@@ -9,6 +9,7 @@ import { AnswerForm } from "@/components/AnswerForm";
 import type { MarkResult } from "@/components/AnswerForm";
 import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 
@@ -29,7 +30,6 @@ type Question = {
   topic: string | null;
   marks_available: number;
   difficulty: "easy" | "medium" | "hard";
-  marking_scheme: string | null;
   image_url: string | null;
   has_diagram: boolean;
 };
@@ -43,21 +43,28 @@ type PastAttempt = {
   created_at: string;
 };
 
+type PaperResponse = {
+  paper?: Paper;
+  questions?: Question[];
+  results?: Record<string, MarkResult>;
+  pastAttempts?: Record<string, PastAttempt[]>;
+  error?: string;
+};
+
 type ResultsSummaryProps = {
   results: Record<string, MarkResult>;
   questions: Question[];
 };
 
 const difficultyColour: Record<string, string> = {
-  easy: "bg-green-100 text-green-800",
-  medium: "bg-yellow-100 text-yellow-800",
-  hard: "bg-red-100 text-red-800",
+  easy: "bg-surface-alt text-text",
+  medium: "bg-surface-alt text-text",
+  hard: "bg-surface-alt text-text",
 };
 
 function scoreColour(pct: number): string {
-  if (pct >= 80) return "text-green-700";
-  if (pct >= 50) return "text-yellow-700";
-  return "text-red-700";
+  if (pct >= 50) return "text-text";
+  return "text-danger";
 }
 
 function InlineQuestionImage({
@@ -83,7 +90,7 @@ function InlineQuestionImage({
         className="max-h-96 w-full rounded-lg border border-border bg-surface object-contain"
         onError={() => setFailed(true)}
       />
-      <figcaption className="text-xs text-text-muted">From the original paper</figcaption>
+      <figcaption className="text-xs text-text-muted">Original paper visual</figcaption>
     </figure>
   );
 }
@@ -101,8 +108,8 @@ function ResultsSummary({ results, questions }: ResultsSummaryProps) {
       <p className={`text-sm font-semibold ${scoreColour(percentage)}`}>
         {totalScore}/{totalMax} · {percentage}%
       </p>
-      <p className="text-sm font-semibold text-indigo-700">+{totalXp} total XP earned</p>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm font-semibold text-text">+{totalXp} total XP earned</p>
+      <p className="text-sm text-text-muted">
         {answeredCount} of {questions.length} questions answered
       </p>
     </div>
@@ -124,102 +131,28 @@ export default function PaperPage() {
   useEffect(() => {
     async function load() {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
         router.push("/auth/login");
         return;
       }
 
-      const { data: paperData, error: paperError } = await supabase
-        .from("past_papers")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const response = await fetch(`/api/papers/${id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = (await response.json().catch(() => ({}))) as PaperResponse;
 
-      if (paperError || !paperData) {
-        setError("Paper not found.");
+      if (!response.ok || !data.paper) {
+        setError(data.error ?? "Paper not found.");
         setLoading(false);
         return;
       }
 
-      const { data: questionData, error: questionError } = await supabase
-        .from("questions")
-        .select("*")
-        .eq("paper_id", id)
-        .order("question_number", { ascending: true });
-
-      if (questionError) {
-        setError(questionError.message);
-        setLoading(false);
-        return;
-      }
-
-      const loadedQuestions = (questionData ?? []) as Question[];
-      const questionIds = loadedQuestions.map((q) => q.id);
-      const resultByQuestion: Record<string, MarkResult> = {};
-      if (questionIds.length > 0) {
-        const { data: attemptsData, error: attemptsError } = await supabase
-          .from("attempts")
-          .select(
-            "id, question_id, answer_text, answer_image_path, needs_teacher_review, score, max_score, percentage, feedback, strengths, improvements, model_answer, xp_earned, created_at"
-          )
-          .eq("user_id", user.id)
-          .in("question_id", questionIds)
-          .order("created_at", { ascending: false });
-
-        if (attemptsError) {
-          setError(attemptsError.message);
-          setLoading(false);
-          return;
-        }
-
-        const signedUrlByPath = new Map<string, string>();
-        for (const attempt of attemptsData ?? []) {
-          if (!attempt.answer_image_path || signedUrlByPath.has(attempt.answer_image_path)) {
-            continue;
-          }
-          const { data: signedData } = await supabase.storage
-            .from("answer-images")
-            .createSignedUrl(attempt.answer_image_path, 3600);
-          if (signedData?.signedUrl) {
-            signedUrlByPath.set(attempt.answer_image_path, signedData.signedUrl);
-          }
-        }
-
-        for (const attempt of attemptsData ?? []) {
-          if (resultByQuestion[attempt.question_id]) continue;
-          resultByQuestion[attempt.question_id] = {
-            score: attempt.score ?? 0,
-            maxScore: attempt.max_score ?? 0,
-            percentage: attempt.percentage ?? 0,
-            feedback: attempt.feedback ?? "",
-            strengths: attempt.strengths ?? [],
-            improvements: attempt.improvements ?? [],
-            modelAnswer: attempt.model_answer ?? "",
-            xpEarned: attempt.xp_earned ?? 0,
-            newStreak: 1,
-            answerText: attempt.answer_text ?? "",
-            answerImagePath: attempt.answer_image_path,
-            answerImageUrl: attempt.answer_image_path
-              ? signedUrlByPath.get(attempt.answer_image_path) ?? null
-              : null,
-            needsTeacherReview: attempt.needs_teacher_review ?? Boolean(attempt.answer_image_path),
-          };
-        }
-
-        const grouped: Record<string, PastAttempt[]> = {};
-        for (const attempt of attemptsData ?? []) {
-          const qid = attempt.question_id as string;
-          if (!grouped[qid]) grouped[qid] = [];
-          grouped[qid].push(attempt as PastAttempt);
-        }
-        setPastAttempts(grouped);
-      }
-
-      setPaper(paperData as Paper);
-      setQuestions(loadedQuestions);
-      setResults(resultByQuestion);
+      setPaper(data.paper);
+      setQuestions(data.questions ?? []);
+      setResults(data.results ?? {});
+      setPastAttempts(data.pastAttempts ?? {});
       setLoading(false);
     }
 
@@ -233,7 +166,7 @@ export default function PaperPage() {
   if (loading) {
     return (
       <AppShell>
-        <p className="text-sm text-slate-500">Loading paper...</p>
+        <p className="text-sm text-text-muted">Loading paper...</p>
       </AppShell>
     );
   }
@@ -241,8 +174,8 @@ export default function PaperPage() {
   if (error || !paper) {
     return (
       <AppShell>
-        <p className="text-sm text-red-700">{error ?? "Something went wrong."}</p>
-        <Link href="/papers" className="mt-2 text-sm text-indigo-600 hover:underline">
+        <p className="text-sm text-danger">{error ?? "Something went wrong."}</p>
+        <Link href="/papers" className="mt-2 text-sm text-text hover:underline">
           Back to My Papers
         </Link>
       </AppShell>
@@ -253,33 +186,31 @@ export default function PaperPage() {
     <AppShell>
       <main className="mx-auto w-full max-w-4xl space-y-6">
         <div>
-          <Link href="/papers" className="text-sm text-indigo-600 hover:underline">
+          <Link href="/papers" className="text-sm text-text hover:underline">
             ← My Papers
           </Link>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">
+          <h1 className="mt-2 text-2xl font-bold text-text">
             {paper.subject_name} — {paper.syllabus_code}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-text-muted">
             {paper.level} {paper.year ? `· ${paper.year}` : ""} ·{" "}
             {questions.length} question{questions.length !== 1 ? "s" : ""}
           </p>
         </div>
 
         {questions.length === 0 ? (
-          <p className="text-sm text-slate-500">No questions found for this paper.</p>
+          <div className="rounded-lg border border-border bg-surface p-5 text-sm text-text-muted">
+            No questions were extracted for this paper. Try uploading a clearer question paper PDF
+            or check the parser output before using it for practice.
+          </div>
         ) : (
           <div className="space-y-4">
             {questions.map((q) => (
               <Card key={q.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-base">
+                    <CardTitle className="text-base text-text">
                       Q{q.question_number}
-                      {q.topic ? (
-                        <span className="ml-2 text-sm font-normal text-slate-500">
-                          {q.topic}
-                        </span>
-                      ) : null}
                     </CardTitle>
 
                     <div className="flex shrink-0 items-center gap-2">
@@ -305,23 +236,13 @@ export default function PaperPage() {
                     />
                   ) : null}
 
-                  <p className="whitespace-pre-wrap text-sm text-slate-800">
+                  <p className="whitespace-pre-wrap text-sm text-text">
                     {q.question_text}
                   </p>
 
-                  {q.marking_scheme && (
-                    <details className="rounded-lg border border-slate-200 bg-slate-50">
-                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">
-                        Show marking scheme
-                      </summary>
-                      <p className="whitespace-pre-wrap px-3 pb-3 pt-1 text-xs text-slate-700">
-                        {q.marking_scheme}
-                      </p>
-                    </details>
-                  )}
-
                   <AnswerForm
                     questionId={q.id}
+                    questionText={q.question_text}
                     marksAvailable={q.marks_available}
                     onSubmitted={(result) => handleSubmitted(q.id, result)}
                     revealed={revealed}
@@ -329,22 +250,22 @@ export default function PaperPage() {
                   />
 
                   {(pastAttempts[q.id] ?? []).length > 0 && (
-                    <details className="mt-3 rounded-lg border border-slate-200">
-                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">
+                    <details className="mt-3 rounded-lg border border-border">
+                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-text-muted hover:text-text">
                         Past attempts ({(pastAttempts[q.id] ?? []).length})
                       </summary>
-                      <ul className="divide-y divide-slate-100 px-3 pb-3">
+                      <ul className="divide-y divide-border px-3 pb-3">
                         {(pastAttempts[q.id] ?? []).map((attempt) => (
                           <li key={attempt.id} className="py-2">
                             <div className="flex items-center justify-between">
                               <span className={`text-sm font-semibold ${scoreColour(attempt.percentage)}`}>
                                 {attempt.score}/{attempt.max_score} · {attempt.percentage}%
                               </span>
-                              <span className="text-xs text-slate-400">
+                              <span className="text-xs text-text-muted">
                                 {new Date(attempt.created_at).toLocaleDateString()}
                               </span>
                             </div>
-                            <p className="mt-0.5 text-xs text-slate-600 line-clamp-2">
+                            <p className="mt-0.5 text-xs text-text-muted line-clamp-2">
                               {attempt.feedback}
                             </p>
                           </li>
@@ -360,19 +281,15 @@ export default function PaperPage() {
 
         {questions.length > 0 && (
           <div className="sticky bottom-4 mt-6">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md">
+            <div className="rounded-xl border border-border bg-surface p-4 shadow-md">
               {!revealed ? (
                 <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-text-muted">
                     {Object.keys(results).length} / {questions.length} answered
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setRevealed(true)}
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                  >
+                  <Button type="button" onClick={() => setRevealed(true)}>
                     Finish & see results
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <ResultsSummary results={results} questions={questions} />

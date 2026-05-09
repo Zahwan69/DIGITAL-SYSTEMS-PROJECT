@@ -22,7 +22,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ chat
 
   const { data: chat, error } = await supabaseAdmin
     .from("teacher_chats")
-    .select("id, class_id, title, created_at, last_message_at, classes(name)")
+    .select(
+      "id, class_id, title, created_at, last_message_at, mode, paper_id, subject_id, syllabus_filename, classes(name)"
+    )
     .eq("id", chatId)
     .eq("teacher_id", gate.userId)
     .single();
@@ -45,6 +47,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ chat
       title: chat.title,
       createdAt: chat.created_at,
       lastMessageAt: chat.last_message_at,
+      mode: (chat.mode ?? "class-analytics") as "class-analytics" | "paper-review" | "write-questions",
+      paperId: chat.paper_id ?? null,
+      subjectId: chat.subject_id ?? null,
+      syllabusFilename: chat.syllabus_filename ?? null,
     },
     messages: messages ?? [],
   });

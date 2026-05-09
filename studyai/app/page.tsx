@@ -1,58 +1,57 @@
-import Link from "next/link";
-import { BarChart3, Building2, FileUp, GraduationCap, SearchCheck, Users } from "lucide-react";
+import { BarChart3, Building2, CheckCircle2, FileUp, GraduationCap, Users } from "lucide-react";
 
 import { Hoverable, HoverableGroup } from "@/components/effects/Hoverable";
 import { HeroBanner } from "@/components/landing/HeroBanner";
+import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { ThemedLandingImage } from "@/components/landing/ThemedLandingImage";
-import { Button } from "@/components/ui/button";
 import Carousel from "@/components/ui/carousel";
 
 const features = [
   {
-    title: "Past papers become practice sessions",
-    body: "Upload or find a paper, then move through questions in a focused workspace built for revision.",
-    image: "/images/landing/feature-upload.png",
-    darkImage: "/images/landing/feature-upload-dark.png",
+    title: "QP and MS files become practice sessions",
+    body: "Upload a question paper with its mark scheme, then move through questions in a focused revision workspace.",
+    image: "/images/landing/upload-qp-ms.png",
+    darkImage: "/images/landing/upload-qp-ms.png",
     Icon: FileUp,
   },
   {
     title: "Feedback explains the next step",
     body: "See marks, strengths, missing points, and model answers that make the correction process clearer.",
-    image: "/images/landing/feature-grading.png",
-    darkImage: "/images/landing/feature-grading-dark.png",
-    Icon: SearchCheck,
+    image: "/images/landing/feedback-workspace.png",
+    darkImage: "/images/landing/feedback-workspace.png",
+    Icon: CheckCircle2,
   },
   {
     title: "Progress stays visible",
     body: "XP, levels, streaks, and weak topics turn repeated practice into a pattern you can understand.",
-    image: "/images/landing/feature-progress.png",
-    darkImage: "/images/landing/feature-progress-dark.png",
+    image: "/images/landing/student-progress.png",
+    darkImage: "/images/landing/student-progress.png",
     Icon: BarChart3,
   },
 ];
 
 const howItWorksSlides = [
   {
-    title: "Find a paper",
-    button: "Search by syllabus code or upload a PDF you already have.",
-    src: "/images/landing/feature-upload.png",
+    title: "Upload QP and MS",
+    button: "Start with your question paper PDF and add the matching mark scheme.",
+    src: "/images/landing/upload-qp-ms.png",
   },
   {
     title: "Answer naturally",
     button: "Type your answer or attach a photo of handwritten work.",
-    src: "/images/landing/hero.png",
+    src: "/images/landing/paper-practice.png",
   },
   {
     title: "Understand feedback",
     button: "See marks, missing points, strengths, and a model answer.",
-    src: "/images/landing/feature-grading.png",
+    src: "/images/landing/feedback-workspace.png",
   },
   {
     title: "Track progress",
     button: "Build XP, levels, streaks, and a clearer view of weak topics.",
-    src: "/images/landing/feature-progress.png",
+    src: "/images/landing/student-progress.png",
   },
 ];
 
@@ -87,8 +86,8 @@ export default function HomePage() {
             A clearer loop for exam practice.
           </h2>
           <p className="mt-5 text-base leading-[1.65] text-text-muted">
-            StudyAI keeps the practice flow simple: choose a paper, answer naturally, learn from feedback, and return to
-            the topics that need work.
+            StudyAI keeps the practice flow simple: upload a QP/MS pair, answer naturally, learn from feedback, and
+            return to the topics that need work.
           </p>
         </div>
         <HoverableGroup className="grid-cols-1 md:grid-cols-3">
@@ -121,16 +120,13 @@ export default function HomePage() {
               O Level and A Level past-paper practice across classes.
             </p>
           </div>
-          <div className="rounded-2xl border border-border bg-surface-alt p-6">
-            <p className="text-sm font-medium uppercase tracking-wide text-text-muted">Classroom workflow</p>
-            <div className="mt-5 grid gap-3 text-sm text-text-muted sm:grid-cols-3">
-              {["Create classes", "Invite students", "Review progress"].map((item) => (
-                <div key={item} className="rounded-xl border border-border bg-surface p-4 text-text">
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
+          <ThemedLandingImage
+            src="/images/landing/teacher-classroom.png"
+            darkSrc="/images/landing/teacher-classroom.png"
+            width={1600}
+            height={1168}
+            className="aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-surface-alt"
+          />
         </div>
 
         <HoverableGroup className="mt-12 grid-cols-1 md:grid-cols-3">
@@ -154,23 +150,7 @@ export default function HomePage() {
         <Carousel slides={howItWorksSlides} />
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-28 text-center">
-        <ThemedLandingImage
-          src="/images/landing/closing.png"
-          darkSrc="/images/landing/closing-dark.png"
-          width={1200}
-          height={600}
-          className="mx-auto aspect-[2/1] w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-surface-alt"
-        />
-        <h2 className="mt-14 text-[44px] font-semibold leading-[1.05] tracking-[-0.025em] text-text md:text-[72px]">
-          Start your first paper.
-        </h2>
-        <div className="mt-8 flex justify-center">
-          <Button asChild size="lg">
-            <Link href="/auth/signup">Get started free</Link>
-          </Button>
-        </div>
-      </section>
+      <LandingCTA />
 
       <LandingFooter />
     </main>
