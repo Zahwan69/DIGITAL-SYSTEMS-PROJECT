@@ -44,6 +44,13 @@ type Assignment = {
   paper: { subject_name: string; syllabus_code: string } | null;
 };
 
+type AssignmentDraft = {
+  paperId: string;
+  title: string;
+  instructions: string;
+  dueDate: string;
+};
+
 type Invite = {
   id: string;
   student_id: string;
@@ -96,6 +103,16 @@ export default function ClassDetailPage() {
   const [dueDate, setDueDate] = useState("");
   const [creatingAssignment, setCreatingAssignment] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
+  const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft>({
+    paperId: "",
+    title: "",
+    instructions: "",
+    dueDate: "",
+  });
+  const [updatingAssignment, setUpdatingAssignment] = useState(false);
+  const [assignmentEditError, setAssignmentEditError] = useState<string | null>(null);
+  const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<StudentResult[]>([]);
@@ -222,6 +239,84 @@ export default function ClassDetailPage() {
     await load();
   }
 
+  function startEditAssignment(assignment: Assignment) {
+    setEditingAssignmentId(assignment.id);
+    setAssignmentEditError(null);
+    setAssignmentDraft({
+      paperId: assignment.paper_id,
+      title: assignment.title,
+      instructions: assignment.instructions ?? "",
+      dueDate: assignment.due_date ? assignment.due_date.slice(0, 10) : "",
+    });
+  }
+
+  async function handleUpdateAssignment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingAssignmentId || !assignmentDraft.title.trim() || !assignmentDraft.paperId) return;
+
+    setUpdatingAssignment(true);
+    setAssignmentEditError(null);
+
+    const token = await getToken();
+    if (!token) {
+      router.push("/auth/login");
+      return;
+    }
+
+    const res = await fetch(`/api/teacher/classes/${id}/assignments/${editingAssignmentId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        title: assignmentDraft.title.trim(),
+        paperId: assignmentDraft.paperId,
+        instructions: assignmentDraft.instructions.trim() || null,
+        dueDate: assignmentDraft.dueDate || null,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setUpdatingAssignment(false);
+    if (!res.ok) {
+      setAssignmentEditError(json.error ?? "Failed to update assignment.");
+      return;
+    }
+
+    setEditingAssignmentId(null);
+    await load();
+  }
+
+  async function handleDeleteAssignment(assignment: Assignment) {
+    if (deletingAssignmentId) return;
+    const ok = window.confirm(`Delete "${assignment.title}"?`);
+    if (!ok) return;
+
+    setDeletingAssignmentId(assignment.id);
+    setAssignmentEditError(null);
+
+    const token = await getToken();
+    if (!token) {
+      router.push("/auth/login");
+      return;
+    }
+
+    const res = await fetch(`/api/teacher/classes/${id}/assignments/${assignment.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setAssignmentEditError(json.error ?? "Failed to delete assignment.");
+      setDeletingAssignmentId(null);
+      return;
+    }
+
+    setDeletingAssignmentId(null);
+    if (editingAssignmentId === assignment.id) setEditingAssignmentId(null);
+    await load();
+  }
+
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const q = search.trim();
@@ -276,6 +371,70 @@ export default function ClassDetailPage() {
     await load();
   }
 
+  async function handleUpdateClass(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = editClassName.trim();
+    if (!name) return;
+
+    setUpdatingClass(true);
+    setClassSettingsError(null);
+
+    const token = await getToken();
+    if (!token) {
+      router.push("/auth/login");
+      return;
+    }
+
+    const res = await fetch(`/api/teacher/classes/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name,
+        subjectId: editSubjectId || null,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setUpdatingClass(false);
+    if (!res.ok) {
+      setClassSettingsError(json.error ?? "Failed to update class.");
+      return;
+    }
+    setClassInfo(json.class as ClassSummary);
+  }
+
+  async function handleDeleteClass() {
+    if (!classInfo || deletingClass) return;
+    const ok = window.confirm(
+      `Delete "${classInfo.name}"? This removes the class, members, assignments, invites, and related teacher chats.`
+    );
+    if (!ok) return;
+
+    setDeletingClass(true);
+    setClassSettingsError(null);
+
+    const token = await getToken();
+    if (!token) {
+      router.push("/auth/login");
+      return;
+    }
+
+    const res = await fetch(`/api/teacher/classes/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setClassSettingsError(json.error ?? "Failed to delete class.");
+      setDeletingClass(false);
+      return;
+    }
+
+    router.push("/teacher/classes");
+  }
+
   if (loading) {
     return (
       <AppShell>
@@ -299,6 +458,7 @@ export default function ClassDetailPage() {
   }
 
   const pendingInvites = invites.filter((i) => i.status === "pending");
+  const selectedAssignment = assignments.find((assignment) => assignment.id === editingAssignmentId) ?? null;
 
   return (
     <AppShell>
@@ -316,6 +476,54 @@ export default function ClassDetailPage() {
             {members.length} member{members.length !== 1 ? "s" : ""}
           </p>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Class settings</CardTitle>
+            <CardDescription>
+              Update the class name or remove this class from your workspace.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUpdateClass} className="space-y-3">
+              <Input
+                value={editClassName}
+                onChange={(event) => setEditClassName(event.target.value)}
+                placeholder="Class name"
+                required
+              />
+              <select
+                value={editSubjectId}
+                onChange={(event) => setEditSubjectId(event.target.value)}
+                className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus-visible:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20"
+              >
+                <option value="">No subject</option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                    {subject.syllabus_code ? ` - ${subject.syllabus_code}` : ""}
+                  </option>
+                ))}
+              </select>
+              {classSettingsError ? (
+                <p className="text-sm text-danger">{classSettingsError}</p>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Button type="submit" disabled={updatingClass || deletingClass}>
+                  {updatingClass ? "Saving..." : "Save changes"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deletingClass || updatingClass}
+                  onClick={() => void handleDeleteClass()}
+                >
+                  {deletingClass ? "Deleting..." : "Delete class"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -379,6 +587,124 @@ export default function ClassDetailPage() {
             </form>
           </CardContent>
         </Card>
+
+        {assignments.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Edit assignment</CardTitle>
+              <CardDescription>
+                Update deadline, details, or switch to a different uploaded QP/MS paper.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <select
+                value={editingAssignmentId ?? ""}
+                onChange={(event) => {
+                  const next = assignments.find((assignment) => assignment.id === event.target.value);
+                  if (next) {
+                    startEditAssignment(next);
+                  } else {
+                    setEditingAssignmentId(null);
+                    setAssignmentEditError(null);
+                  }
+                }}
+                className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus-visible:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20"
+              >
+                <option value="">Select assignment to edit...</option>
+                {assignments.map((assignment) => (
+                  <option key={assignment.id} value={assignment.id}>
+                    {assignment.title}
+                  </option>
+                ))}
+              </select>
+
+              {selectedAssignment ? (
+                <form onSubmit={handleUpdateAssignment} className="space-y-3">
+                  <Input
+                    value={assignmentDraft.title}
+                    onChange={(event) =>
+                      setAssignmentDraft((current) => ({ ...current, title: event.target.value }))
+                    }
+                    placeholder="Assignment title"
+                    required
+                  />
+                  <select
+                    value={assignmentDraft.paperId}
+                    onChange={(event) =>
+                      setAssignmentDraft((current) => ({ ...current, paperId: event.target.value }))
+                    }
+                    className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus-visible:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20"
+                    required
+                  >
+                    <option value="">Select a past paper...</option>
+                    {papers.map((paper) => (
+                      <option key={paper.id} value={paper.id}>
+                        {paper.subject_name} - {paper.syllabus_code}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-text-muted">
+                      To replace files, upload a new QP/MS pair and select it here.
+                    </p>
+                    <Link
+                      href={`/upload?returnTo=${encodeURIComponent(`/teacher/classes/${id}`)}`}
+                      className="text-xs font-medium text-text underline hover:text-text-muted"
+                    >
+                      Upload QP/MS
+                    </Link>
+                  </div>
+                  <Textarea
+                    value={assignmentDraft.instructions}
+                    onChange={(event) =>
+                      setAssignmentDraft((current) => ({ ...current, instructions: event.target.value }))
+                    }
+                    placeholder="Instructions (optional)"
+                    rows={3}
+                  />
+                  <Input
+                    type="date"
+                    value={assignmentDraft.dueDate}
+                    onChange={(event) =>
+                      setAssignmentDraft((current) => ({ ...current, dueDate: event.target.value }))
+                    }
+                  />
+                  {assignmentEditError ? (
+                    <p className="text-sm text-danger">{assignmentEditError}</p>
+                  ) : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="submit" disabled={updatingAssignment}>
+                      {updatingAssignment ? "Saving..." : "Save assignment"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={updatingAssignment || deletingAssignmentId === selectedAssignment.id}
+                      onClick={() => void handleDeleteAssignment(selectedAssignment)}
+                    >
+                      {deletingAssignmentId === selectedAssignment.id ? "Deleting..." : "Delete assignment"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={updatingAssignment}
+                      onClick={() => {
+                        setEditingAssignmentId(null);
+                        setAssignmentEditError(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <p className="text-sm text-text-muted">
+                  Choose an assignment above to update its details.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader>
