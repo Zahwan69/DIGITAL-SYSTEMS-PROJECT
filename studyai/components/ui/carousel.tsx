@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,16 @@ export type CarouselSlide = {
 export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
   const [active, setActive] = useState(0);
   const activeSlide = slides[active];
+
+  useEffect(() => {
+    if (slides.length < 2) return;
+
+    const timer = window.setInterval(() => {
+      setActive((current) => (current + 1) % slides.length);
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [slides.length]);
 
   function go(direction: -1 | 1) {
     setActive((current) => (current + direction + slides.length) % slides.length);
