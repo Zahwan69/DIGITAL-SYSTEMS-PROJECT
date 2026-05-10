@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import {
   BookOpen,
   ChevronsLeft,
@@ -29,7 +29,7 @@ type NavItem = {
   href: string;
   pathMatch: string;
   label: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
 };
 
 type NavGroup = {
@@ -38,6 +38,7 @@ type NavGroup = {
 };
 
 type ProfileSummary = {
+  email?: string | null;
   username?: string | null;
   full_name?: string | null;
   xp?: number | null;
@@ -90,6 +91,83 @@ function homeForRole(role: AppRole) {
   return "/dashboard";
 }
 
+function profileInitial(profile: ProfileSummary) {
+  const source = profile?.full_name || profile?.username || profile?.email || "A";
+  return source.trim().charAt(0).toUpperCase() || "A";
+}
+
+function ProfileMenu({
+  profile,
+  role,
+  collapsed,
+}: {
+  profile: ProfileSummary;
+  role: AppRole | null;
+  collapsed: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const displayName = profile?.full_name || profile?.username || "Account";
+  const email = profile?.email || "Signed in";
+  const initial = profileInitial(profile);
+  const showXp = role === "student" || role === "teacher";
+
+  return (
+    <div className="relative">
+      {open ? (
+        <div
+          className={cn(
+            "absolute bottom-full z-[70] mb-2 w-72 rounded-lg border border-border bg-surface p-3 shadow-xl",
+            collapsed ? "lg:bottom-0 lg:left-full lg:mb-0 lg:ml-2" : "left-0"
+          )}
+        >
+          <div className="flex items-center gap-3 border-b border-border pb-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-accent text-sm font-semibold text-text-on-accent">
+              {initial}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-text">{displayName}</p>
+              <p className="truncate text-xs text-text-muted">{email}</p>
+              {showXp ? (
+                <p className="mt-1 text-xs text-text-muted">
+                  Level {profile?.level ?? 1} / {profile?.xp ?? 0} XP
+                </p>
+              ) : (
+                <p className="mt-1 text-xs uppercase tracking-wide text-text-muted">{role ?? "student"}</p>
+              )}
+            </div>
+          </div>
+
+          <SignOutButton className="mt-3 w-full justify-center" onSignedOut={() => setOpen(false)} />
+
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-border bg-surface-alt px-3 py-2">
+            <span className="text-sm font-medium text-text">Theme</span>
+            <ThemeToggle />
+          </div>
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2 text-left transition-colors hover:border-border-strong hover:bg-surface-alt",
+          collapsed && "lg:justify-center lg:px-0"
+        )}
+        aria-expanded={open}
+        aria-label="Open profile menu"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-accent text-sm font-semibold text-text-on-accent">
+          {initial}
+        </span>
+        <span className={cn("min-w-0", collapsed && "lg:sr-only")}>
+          <span className="block truncate text-sm font-semibold text-text">{displayName}</span>
+          <span className="block truncate text-xs text-text-muted">{email}</span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
 type AppSidebarProps = {
   role: AppRole | null;
   profile: ProfileSummary;
@@ -108,30 +186,26 @@ export function AppSidebar({
   onToggleDesktop,
 }: AppSidebarProps) {
   const pathname = usePathname();
-  const groups = buildGroups((role ?? "student") as AppRole);
+  const activeRole = (role ?? "student") as AppRole;
+  const groups = buildGroups(activeRole);
+  const home = homeForRole(activeRole);
+  const collapsedClass = desktopCollapsed ? "lg:w-16" : "lg:w-64";
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    if (mobileOpen) {
-      const previous = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = previous;
-      };
-    }
+    if (!mobileOpen) return;
+
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
   }, [mobileOpen]);
 
   useEffect(() => {
     if (mobileOpen) onMobileClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
-
-  const home = homeForRole((role ?? "student") as AppRole);
-  const displayName = profile?.full_name || profile?.username || "Account";
-  const showXp = role === "student" || role === "teacher";
-
-  // On mobile we always render at full width (drawer); collapsed only applies on lg+.
-  const collapsedClass = desktopCollapsed ? "lg:w-16" : "lg:w-64";
 
   return (
     <>
@@ -155,37 +229,30 @@ export function AppSidebar({
       >
         <div
           className={cn(
-            "flex h-14 shrink-0 items-center gap-2 border-b border-border",
+            "relative flex h-14 shrink-0 items-center gap-2 border-b border-border",
             desktopCollapsed ? "lg:justify-center lg:px-2" : "lg:px-4",
             "justify-between px-4"
           )}
         >
           <Link
             href={home}
-            className={cn(
-              "flex items-center gap-2 text-text",
-              desktopCollapsed && "lg:justify-center"
-            )}
+            className={cn("flex items-center gap-2 text-text", desktopCollapsed && "lg:justify-center")}
             aria-label={BRAND_NAME}
           >
             <GraduationCap className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
-            <span
-              className={cn(
-                "text-sm font-semibold tracking-tight",
-                desktopCollapsed && "lg:hidden"
-              )}
-            >
+            <span className={cn("text-sm font-semibold tracking-tight", desktopCollapsed && "lg:hidden")}>
               {BRAND_NAME}
             </span>
           </Link>
 
-          {/* Desktop collapse toggle — visible on lg+ */}
           <button
             type="button"
             onClick={onToggleDesktop}
             className={cn(
-              "hidden h-7 w-7 items-center justify-center rounded-md text-text-muted hover:bg-surface hover:text-text lg:inline-flex",
-              desktopCollapsed && "lg:absolute lg:right-1 lg:top-1.5"
+              "hidden items-center justify-center text-text-muted transition-colors hover:text-text lg:inline-flex",
+              desktopCollapsed
+                ? "lg:absolute lg:-right-5 lg:top-20 lg:z-[60] lg:h-10 lg:w-10 lg:rounded-lg lg:border lg:border-border lg:bg-surface lg:shadow-md hover:lg:bg-surface-alt"
+                : "h-7 w-7 rounded-md hover:bg-surface"
             )}
             aria-label={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={desktopCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
@@ -197,7 +264,6 @@ export function AppSidebar({
             )}
           </button>
 
-          {/* Mobile close button */}
           <button
             type="button"
             onClick={onMobileClose}
@@ -208,28 +274,7 @@ export function AppSidebar({
           </button>
         </div>
 
-        {profile && !desktopCollapsed ? (
-          <div className="border-b border-border px-3 py-3 lg:block">
-            <div className="rounded-md border border-border bg-surface px-3 py-2.5">
-              <p className="truncate text-sm font-semibold text-text">{displayName}</p>
-              {showXp ? (
-                <p className="text-xs text-text-muted">
-                  Lvl {profile?.level ?? 1} · {profile?.xp ?? 0} XP
-                </p>
-              ) : (
-                <p className="text-xs uppercase tracking-wide text-text-muted">{role}</p>
-              )}
-            </div>
-          </div>
-        ) : null}
-
-        <nav
-          className={cn(
-            "flex-1 overflow-y-auto py-3",
-            desktopCollapsed ? "lg:px-2" : "lg:px-3",
-            "px-3"
-          )}
-        >
+        <nav className={cn("flex-1 overflow-y-auto py-3", desktopCollapsed ? "lg:px-2" : "lg:px-3", "px-3")}>
           {groups.map((group) => (
             <div key={group.title} className="mb-5 last:mb-0">
               {desktopCollapsed ? (
@@ -243,6 +288,7 @@ export function AppSidebar({
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const active = pathIsActive(pathname, item.pathMatch);
+
                   return (
                     <li key={item.href}>
                       <Link
@@ -250,14 +296,12 @@ export function AppSidebar({
                         title={desktopCollapsed ? item.label : undefined}
                         className={cn(
                           "flex h-9 items-center gap-2.5 rounded-md text-sm font-medium text-text-muted transition-colors hover:bg-surface hover:text-text",
-                          desktopCollapsed ? "lg:justify-center lg:px-0 px-2.5" : "px-2.5",
+                          desktopCollapsed ? "px-2.5 lg:justify-center lg:px-0" : "px-2.5",
                           active && "bg-accent text-text-on-accent hover:bg-accent hover:text-text-on-accent"
                         )}
                       >
                         <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
-                        <span className={cn("truncate", desktopCollapsed && "lg:sr-only")}>
-                          {item.label}
-                        </span>
+                        <span className={cn("truncate", desktopCollapsed && "lg:sr-only")}>{item.label}</span>
                       </Link>
                     </li>
                   );
@@ -267,35 +311,8 @@ export function AppSidebar({
           ))}
         </nav>
 
-        <div
-          className={cn(
-            "shrink-0 border-t border-border py-3",
-            desktopCollapsed ? "lg:px-2" : "lg:px-3",
-            "px-3"
-          )}
-        >
-          {desktopCollapsed ? (
-            <div className="hidden flex-col items-center gap-2 lg:flex">
-              <ThemeToggle />
-              <SignOutButton variant="icon" />
-            </div>
-          ) : (
-            <div className="hidden flex-col gap-2 lg:flex">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs uppercase tracking-wider text-text-muted">Theme</span>
-                <ThemeToggle />
-              </div>
-              <SignOutButton className="w-full justify-center" />
-            </div>
-          )}
-          {/* Mobile footer (drawer) — always full-width regardless of collapsed state */}
-          <div className="flex flex-col gap-2 lg:hidden">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs uppercase tracking-wider text-text-muted">Theme</span>
-              <ThemeToggle />
-            </div>
-            <SignOutButton className="w-full justify-center" />
-          </div>
+        <div className={cn("shrink-0 border-t border-border py-3", desktopCollapsed ? "lg:px-2" : "lg:px-3", "px-3")}>
+          <ProfileMenu profile={profile} role={role} collapsed={desktopCollapsed} />
         </div>
       </aside>
     </>

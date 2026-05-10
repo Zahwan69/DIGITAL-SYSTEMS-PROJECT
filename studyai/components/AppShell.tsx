@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 type ProfileSummary = {
+  email: string | null;
   username: string | null;
   full_name: string | null;
   xp: number | null;
@@ -51,6 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .single();
     setRole((data?.role ?? "student") as AppRole);
     setProfile({
+      email: user.email ?? null,
       username: data?.username ?? null,
       full_name: data?.full_name ?? null,
       xp: data?.xp ?? null,

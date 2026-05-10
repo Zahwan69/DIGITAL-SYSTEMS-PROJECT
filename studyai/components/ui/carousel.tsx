@@ -23,7 +23,7 @@ export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
   if (!activeSlide) return null;
 
   return (
-    <div className="relative mx-auto min-h-[520px] w-full max-w-6xl overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+    <div className="relative mx-auto min-h-[460px] w-full max-w-6xl overflow-hidden rounded-2xl border border-neutral-200 bg-white md:min-h-[520px]">
       <div key={activeSlide.src} className="absolute inset-0">
         <Image
           src={activeSlide.src}
@@ -31,27 +31,27 @@ export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
           aria-hidden="true"
           fill
           sizes="(min-width: 1024px) 1152px, 100vw"
-          className="object-cover object-center"
+          className="object-contain object-center"
         />
       </div>
-      <div className="absolute inset-0 bg-white/15" />
-      <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-white/95 via-white/65 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-white/95 to-transparent" />
+      <div className="absolute inset-0 bg-white/20" />
+      <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-white/95 via-white/70 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white/95 to-transparent" />
 
-      <div className="relative flex min-h-[520px] flex-col justify-between p-6 md:p-8">
-        <div className="max-w-md">
+      <div className="relative flex min-h-[460px] flex-col items-center justify-between p-5 text-center md:min-h-[520px] md:p-8">
+        <div className="mx-auto max-w-xl">
           <p className="text-sm font-medium uppercase tracking-wide text-neutral-600">
             Step {active + 1} of {slides.length}
           </p>
-          <h3 className="mt-4 text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-neutral-950 md:text-[48px]">
+          <h3 className="mt-3 text-[28px] font-semibold leading-[1.12] text-neutral-950 md:text-[38px]">
             {activeSlide.title}
           </h3>
-          <p className="mt-5 max-w-sm text-base leading-[1.65] text-neutral-700">
+          <p className="mx-auto mt-4 max-w-md text-sm leading-[1.55] text-neutral-700 md:text-base">
             {activeSlide.button}
           </p>
         </div>
 
-        <div className="mt-8 flex items-center gap-3">
+        <div className="mt-8 flex items-center justify-center gap-3">
           <button
             type="button"
             onClick={() => go(-1)}
