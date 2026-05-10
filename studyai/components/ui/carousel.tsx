@@ -15,6 +15,7 @@ export type CarouselSlide = {
 export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
   const [active, setActive] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
+  const [timerResetKey, setTimerResetKey] = useState(0);
   const activeSlide = slides[active];
   const slideStyle = {
     "--carousel-offset": direction === 1 ? "24px" : "-24px",
@@ -29,15 +30,17 @@ export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
     }, 5000);
 
     return () => window.clearInterval(timer);
-  }, [slides.length]);
+  }, [slides.length, timerResetKey]);
 
   function go(direction: -1 | 1) {
+    setTimerResetKey((current) => current + 1);
     setDirection(direction);
     setActive((current) => (current + direction + slides.length) % slides.length);
   }
 
   function jumpTo(index: number) {
     if (index === active) return;
+    setTimerResetKey((current) => current + 1);
     setDirection(index > active ? 1 : -1);
     setActive(index);
   }
