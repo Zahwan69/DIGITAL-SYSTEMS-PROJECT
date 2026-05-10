@@ -119,6 +119,9 @@ export default function ClassDetailPage() {
   const [searching, setSearching] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [memberError, setMemberError] = useState<string | null>(null);
 
   const getToken = useCallback(async () => {
     const {
@@ -368,6 +371,62 @@ export default function ClassDetailPage() {
       setInviteError(json.error ?? "Failed to send invite.");
       return;
     }
+    await load();
+  }
+
+  async function handleCancelInvite(invite: Invite) {
+    if (cancelingInviteId) return;
+    setCancelingInviteId(invite.id);
+    setInviteError(null);
+
+    const token = await getToken();
+    if (!token) {
+      router.push("/auth/login");
+      return;
+    }
+
+    const res = await fetch(`/api/teacher/classes/${id}/invites/${invite.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setInviteError(json.error ?? "Failed to cancel invite.");
+      setCancelingInviteId(null);
+      return;
+    }
+
+    setCancelingInviteId(null);
+    await load();
+  }
+
+  async function handleRemoveMember(member: Member) {
+    if (removingMemberId) return;
+    const label = member.full_name || member.username || "this student";
+    const ok = window.confirm(`Remove ${label} from this class?`);
+    if (!ok) return;
+
+    setRemovingMemberId(member.id);
+    setMemberError(null);
+
+    const token = await getToken();
+    if (!token) {
+      router.push("/auth/login");
+      return;
+    }
+
+    const res = await fetch(`/api/teacher/classes/${id}/members/${member.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setMemberError(json.error ?? "Failed to remove member.");
+      setRemovingMemberId(null);
+      return;
+    }
+
+    setRemovingMemberId(null);
     await load();
   }
 
@@ -817,8 +876,17 @@ export default function ClassDetailPage() {
                 </p>
                 <ul className="mt-2 space-y-1 text-sm text-text-muted">
                   {pendingInvites.map((i) => (
-                    <li key={i.id}>
-                      {i.full_name || i.username || i.student_id}
+                    <li key={i.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface p-2">
+                      <span>{i.full_name || i.username || i.student_id}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={cancelingInviteId === i.id}
+                        onClick={() => void handleCancelInvite(i)}
+                      >
+                        {cancelingInviteId === i.id ? "Canceling..." : "Cancel invite"}
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -832,6 +900,7 @@ export default function ClassDetailPage() {
             <CardTitle className="text-base">Members ({members.length})</CardTitle>
           </CardHeader>
           <CardContent>
+            {memberError ? <p className="mb-3 text-sm text-danger">{memberError}</p> : null}
             {members.length === 0 ? (
               <p className="text-sm text-text-muted">
                 No students yet. Share the join code or send invites above.
@@ -849,9 +918,20 @@ export default function ClassDetailPage() {
                         <span className="ml-2 text-xs text-text-muted">@{m.username}</span>
                       )}
                     </span>
-                    <span className="text-xs text-text-muted">
-                      Joined {new Date(m.joined_at).toLocaleDateString()}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-text-muted">
+                        Joined {new Date(m.joined_at).toLocaleDateString()}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={removingMemberId === m.id}
+                        onClick={() => void handleRemoveMember(m)}
+                      >
+                        {removingMemberId === m.id ? "Removing..." : "Remove"}
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
