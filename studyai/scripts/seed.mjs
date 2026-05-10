@@ -108,6 +108,10 @@ function passwordForEmail(email) {
   return email;
 }
 
+function usernameForEmail(email) {
+  return email.split("@")[0];
+}
+
 const SUBJECTS = [
   { name: "IGCSE Mathematics", syllabus_code: "0580", level: "IGCSE" },
   { name: "IGCSE Biology", syllabus_code: "0610", level: "IGCSE" },
@@ -244,6 +248,7 @@ async function ensureUser(email, fullName, role) {
   const existing = await findUserByEmail(email);
   let userId;
   let created = false;
+  const username = usernameForEmail(email);
 
   if (existing) {
     userId = existing.id;
@@ -251,7 +256,7 @@ async function ensureUser(email, fullName, role) {
     const { error } = await supabase.auth.admin.updateUserById(userId, {
       password: passwordForEmail(email),
       email_confirm: true,
-      user_metadata: { full_name: fullName, username: email.split("@")[0] },
+      user_metadata: { full_name: fullName, username },
     });
     if (error) throw new Error(`updateUser ${email}: ${error.message}`);
   } else {
@@ -259,7 +264,7 @@ async function ensureUser(email, fullName, role) {
       email,
       password: passwordForEmail(email),
       email_confirm: true,
-      user_metadata: { full_name: fullName, username: email.split("@")[0] },
+      user_metadata: { full_name: fullName, username },
     });
     if (error) throw new Error(`createUser ${email}: ${error.message}`);
     userId = data.user.id;
@@ -269,7 +274,7 @@ async function ensureUser(email, fullName, role) {
 
   const { error } = await supabase.from("profiles").upsert({
     id: userId,
-    username: email.split("@")[0],
+    username,
     full_name: fullName,
     role,
   });
@@ -555,11 +560,20 @@ async function main() {
 
   console.log("\nSeed complete\n");
   console.log("Main test logins:");
-  console.log(`  Admin:   ${PRIMARY_ADMIN_EMAIL} / ${passwordForEmail(PRIMARY_ADMIN_EMAIL)}`);
-  console.log(`  Teacher: ${PRIMARY_TEACHER_EMAIL} / ${passwordForEmail(PRIMARY_TEACHER_EMAIL)}`);
-  console.log(`  Student: ${STUDENTS[0][0]} / ${passwordForEmail(STUDENTS[0][0])}`);
-  console.log(`  Student: ${STUDENTS[8][0]} / ${passwordForEmail(STUDENTS[8][0])}`);
-  console.log("  Password for every generated test account is the account email.");
+  console.log(
+    `  Admin:   email ${PRIMARY_ADMIN_EMAIL} / username ${usernameForEmail(PRIMARY_ADMIN_EMAIL)} / password ${passwordForEmail(PRIMARY_ADMIN_EMAIL)}`
+  );
+  console.log(
+    `  Teacher: email ${PRIMARY_TEACHER_EMAIL} / username ${usernameForEmail(PRIMARY_TEACHER_EMAIL)} / password ${passwordForEmail(PRIMARY_TEACHER_EMAIL)}`
+  );
+  console.log(
+    `  Student: email ${STUDENTS[0][0]} / username ${usernameForEmail(STUDENTS[0][0])} / password ${passwordForEmail(STUDENTS[0][0])}`
+  );
+  console.log(
+    `  Student: email ${STUDENTS[8][0]} / username ${usernameForEmail(STUDENTS[8][0])} / password ${passwordForEmail(STUDENTS[8][0])}`
+  );
+  console.log("  Usernames are the email prefix for every generated test account.");
+  console.log("  Passwords are the full email address for every generated test account.");
   console.log("\nClass join codes:");
   CLASS_DEFS.forEach((classDef) => console.log(`  ${classDef.name}: ${classDef.join_code}`));
   console.log("\nSuggested smoke test:");
