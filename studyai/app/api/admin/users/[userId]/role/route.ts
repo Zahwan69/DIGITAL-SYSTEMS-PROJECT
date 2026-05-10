@@ -29,7 +29,42 @@ export async function POST(
     return NextResponse.json({ error: "Invalid role." }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin.from("profiles").update({ role }).eq("id", userId);
+  const {
+    data: { user },
+    error: userError,
+  } = await supabaseAdmin.auth.admin.getUserById(userId);
+
+  if (userError || !user) {
+    return NextResponse.json({ error: "User not found." }, { status: 404 });
+  }
+
+  const { data: profile, error: profileReadError } = await supabaseAdmin
+    .from("profiles")
+    .select("username, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileReadError) {
+    return NextResponse.json({ error: profileReadError.message }, { status: 500 });
+  }
+
+  const email = user.email ?? "";
+  const username =
+    profile?.username ||
+    (typeof user.user_metadata?.username === "string" ? user.user_metadata.username : null) ||
+    email.split("@")[0] ||
+    "user";
+  const fullName =
+    profile?.full_name ||
+    (typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : null) ||
+    username;
+
+  const { error } = await supabaseAdmin.from("profiles").upsert({
+    id: userId,
+    username,
+    full_name: fullName,
+    role,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

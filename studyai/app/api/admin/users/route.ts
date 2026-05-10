@@ -6,6 +6,10 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type Role = "student" | "teacher" | "admin";
 
+function isRole(value: unknown): value is Role {
+  return value === "student" || value === "teacher" || value === "admin";
+}
+
 export async function GET(request: Request) {
   const auth = await authenticateRequest(request);
   if (!auth.ok) {
@@ -37,20 +41,41 @@ export async function GET(request: Request) {
     {
       username: string | null;
       full_name: string | null;
-      role: string;
+      role: Role | null;
       xp: number;
       level: number;
-      last_study_date: string | null;
       created_at: string;
     }
   > = {};
+  let lastStudyDates: Record<string, string | null> = {};
 
   if (ids.length > 0) {
-    const { data: profRows } = await supabaseAdmin
+    const { data: profRows, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("id, username, full_name, role, xp, level, last_study_date, created_at")
+      .select("id, username, full_name, role, xp, level, created_at")
       .in("id", ids);
-    profiles = Object.fromEntries((profRows ?? []).map((p) => [p.id as string, p as (typeof profiles)[string]]));
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
+    }
+
+    profiles = Object.fromEntries(
+      (profRows ?? []).map((p) => [
+        p.id as string,
+        {
+          ...p,
+          role: isRole(p.role) ? p.role : null,
+        } as (typeof profiles)[string],
+      ])
+    );
+
+    const { data: activityRows } = await supabaseAdmin
+      .from("profiles")
+      .select("id, last_study_date")
+      .in("id", ids);
+    lastStudyDates = Object.fromEntries(
+      (activityRows ?? []).map((p) => [p.id as string, (p.last_study_date as string | null) ?? null])
+    );
   }
 
   let rows = users.map((u) => {
@@ -61,11 +86,12 @@ export async function GET(request: Request) {
       email,
       username: p?.username ?? null,
       full_name: p?.full_name ?? null,
-      role: p?.role ?? "student",
+      role: p?.role ?? "unassigned",
       xp: p?.xp ?? 0,
       level: p?.level ?? 0,
-      last_study_date: p?.last_study_date ?? null,
+      last_study_date: lastStudyDates[u.id] ?? null,
       created_at: p?.created_at ?? u.created_at,
+      profile_missing: !p,
     };
   });
 
@@ -127,7 +153,7 @@ export async function POST(request: Request) {
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: displayName, username },
+    user_metadata: { full_name: displayName, username, role },
   });
 
   if (error || !data.user) {

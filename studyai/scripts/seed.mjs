@@ -256,7 +256,7 @@ async function ensureUser(email, fullName, role) {
     const { error } = await supabase.auth.admin.updateUserById(userId, {
       password: passwordForEmail(email),
       email_confirm: true,
-      user_metadata: { full_name: fullName, username },
+      user_metadata: { full_name: fullName, username, role },
     });
     if (error) throw new Error(`updateUser ${email}: ${error.message}`);
   } else {
@@ -264,7 +264,7 @@ async function ensureUser(email, fullName, role) {
       email,
       password: passwordForEmail(email),
       email_confirm: true,
-      user_metadata: { full_name: fullName, username },
+      user_metadata: { full_name: fullName, username, role },
     });
     if (error) throw new Error(`createUser ${email}: ${error.message}`);
     userId = data.user.id;

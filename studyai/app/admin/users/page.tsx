@@ -20,25 +20,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase";
 
 type Role = "student" | "teacher" | "admin";
+type DisplayRole = Role | "unassigned";
 
 type UserRow = {
   id: string;
   email: string;
   username: string | null;
   full_name: string | null;
-  role: Role;
+  role: DisplayRole;
   xp: number;
   level: number;
   last_study_date: string | null;
   created_at: string;
+  profile_missing: boolean;
 };
 
 const PAGE_SIZE = 25;
 const ROLES: Role[] = ["student", "teacher", "admin"];
 
-function roleBadgeClass(role: Role) {
+function roleBadgeClass(role: DisplayRole) {
   if (role === "admin") return "border-danger/30 bg-danger/10 text-danger";
   if (role === "teacher") return "border-accent/30 bg-accent-soft text-text";
+  if (role === "unassigned") return "border-warning/30 bg-warning/10 text-text";
   return "border-border bg-surface-alt text-text-muted";
 }
 
@@ -412,7 +415,7 @@ export default function AdminUsersPage() {
                             <span
                               className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${roleBadgeClass(user.role)}`}
                             >
-                              {user.role}
+                              {user.role === "unassigned" ? "profile missing" : user.role}
                             </span>
                             {isSelf && <span className="ml-2 text-xs text-text-muted">You</span>}
                           </td>

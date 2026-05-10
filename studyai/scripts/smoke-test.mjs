@@ -101,10 +101,13 @@ async function runAdminSmoke(adminToken) {
   pass("admin metrics are accessible");
 
   const directory = await api("/api/admin/users?page=1&pageSize=100", { token: adminToken });
-  const emails = new Set((directory.users ?? []).map((user) => user.email));
-  assert(emails.has(ACCOUNTS.admin), `Admin directory missing ${ACCOUNTS.admin}.`);
-  assert(emails.has(ACCOUNTS.teacher), `Admin directory missing ${ACCOUNTS.teacher}.`);
-  assert(emails.has(ACCOUNTS.student), `Admin directory missing ${ACCOUNTS.student}.`);
+  const usersByEmail = new Map((directory.users ?? []).map((user) => [user.email, user]));
+  assert(usersByEmail.has(ACCOUNTS.admin), `Admin directory missing ${ACCOUNTS.admin}.`);
+  assert(usersByEmail.has(ACCOUNTS.teacher), `Admin directory missing ${ACCOUNTS.teacher}.`);
+  assert(usersByEmail.has(ACCOUNTS.student), `Admin directory missing ${ACCOUNTS.student}.`);
+  assert(usersByEmail.get(ACCOUNTS.admin)?.role === "admin", `${ACCOUNTS.admin} is not shown as admin.`);
+  assert(usersByEmail.get(ACCOUNTS.teacher)?.role === "teacher", `${ACCOUNTS.teacher} is not shown as teacher.`);
+  assert(usersByEmail.get(ACCOUNTS.student)?.role === "student", `${ACCOUNTS.student} is not shown as student.`);
   pass("admin users directory includes seeded accounts");
 
   const tempEmail = `student-smoke-${Date.now()}@studyai.test`;
