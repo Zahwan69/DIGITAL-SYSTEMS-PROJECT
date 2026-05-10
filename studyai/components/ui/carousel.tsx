@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -14,12 +14,17 @@ export type CarouselSlide = {
 
 export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
   const [active, setActive] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
   const activeSlide = slides[active];
+  const slideStyle = {
+    "--carousel-offset": direction === 1 ? "24px" : "-24px",
+  } as CSSProperties;
 
   useEffect(() => {
     if (slides.length < 2) return;
 
     const timer = window.setInterval(() => {
+      setDirection(1);
       setActive((current) => (current + 1) % slides.length);
     }, 5000);
 
@@ -27,14 +32,25 @@ export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
   }, [slides.length]);
 
   function go(direction: -1 | 1) {
+    setDirection(direction);
     setActive((current) => (current + direction + slides.length) % slides.length);
+  }
+
+  function jumpTo(index: number) {
+    if (index === active) return;
+    setDirection(index > active ? 1 : -1);
+    setActive(index);
   }
 
   if (!activeSlide) return null;
 
   return (
     <div className="relative mx-auto min-h-[460px] w-full max-w-6xl overflow-hidden rounded-2xl border border-neutral-200 bg-white md:min-h-[520px]">
-      <div key={activeSlide.src} className="absolute inset-0">
+      <div
+        key={activeSlide.src}
+        className="carousel-slide-enter absolute inset-0 will-change-transform"
+        style={slideStyle}
+      >
         <Image
           src={activeSlide.src}
           alt=""
@@ -49,7 +65,7 @@ export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
       <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white/95 to-transparent" />
 
       <div className="relative flex min-h-[460px] flex-col items-center justify-between p-5 text-center md:min-h-[520px] md:p-8">
-        <div className="mx-auto max-w-xl">
+        <div key={activeSlide.title} className="carousel-slide-enter mx-auto max-w-xl" style={slideStyle}>
           <p className="text-sm font-medium uppercase tracking-wide text-neutral-600">
             Step {active + 1} of {slides.length}
           </p>
@@ -84,7 +100,7 @@ export default function Carousel({ slides }: { slides: CarouselSlide[] }) {
                 key={slide.title}
                 type="button"
                 aria-label={`Go to ${slide.title}`}
-                onClick={() => setActive(index)}
+                onClick={() => jumpTo(index)}
                 className={cn(
                   "h-1.5 rounded-full transition-all",
                   index === active ? "w-7 bg-neutral-950" : "w-1.5 bg-neutral-400"

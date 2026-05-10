@@ -140,6 +140,11 @@ export default function UploadPage() {
       return;
     }
 
+    if (markSchemeFiles.length === 0) {
+      setError("Please select at least one mark scheme PDF before submitting.");
+      return;
+    }
+
     if (markSchemeFiles.length > 1 && markSchemeFiles.length !== files.length) {
       setError(
         "Upload one mark scheme for all question papers, or one mark scheme for each question paper."
@@ -207,7 +212,7 @@ export default function UploadPage() {
         <div className="w-full rounded-lg border border-border bg-surface p-5 sm:p-6">
           <h1 className="font-serif text-2xl font-semibold text-text">Upload QP and MS</h1>
           <p className="mt-1 text-sm text-text-muted">
-            Enter a syllabus code and upload a question paper. Add the mark scheme in the same form when you have it.
+            Enter a syllabus code and upload the question paper with its mark scheme in the same form.
           </p>
 
           {error && (
@@ -304,7 +309,7 @@ export default function UploadPage() {
 
             <div>
               <span className="mb-1 block text-sm font-medium text-text">
-                Mark Scheme PDFs <span className="text-text-muted">(optional)</span>
+                Mark Scheme PDFs
               </span>
               <Dropzone
                 multiple
@@ -313,7 +318,7 @@ export default function UploadPage() {
                 onFilesRejected={handleMarkSchemeFilesRejected}
                 inputProps={{ accept: ".pdf,application/pdf" }}
                 label="Drop mark scheme PDFs here, or click to browse"
-                hint="Use one mark scheme for all papers, or upload the same number as question papers to pair by order."
+                hint="Required. Use one mark scheme for all papers, or upload the same number as question papers to pair by order."
               />
               {selectedMarkSchemeFilenames.length > 0 && (
                 <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-text-muted">
