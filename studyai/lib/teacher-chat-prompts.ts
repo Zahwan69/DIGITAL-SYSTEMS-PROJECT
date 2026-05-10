@@ -32,6 +32,20 @@ type PaperReviewContext = {
     difficulty: string | null;
     markingScheme: string | null;
   }>;
+  studentAttempts: Array<{
+    studentLabel: string;
+    questionNumber: string;
+    topic: string | null;
+    questionText: string;
+    answerText: string;
+    score: number;
+    maxScore: number;
+    percentage: number;
+    feedback: string;
+    improvements: string[];
+    needsTeacherReview: boolean;
+    at: string;
+  }>;
 };
 
 type WriteQuestionsContext = {
@@ -47,7 +61,8 @@ type WriteQuestionsContext = {
 
 export async function loadPaperReviewContext(
   paperId: string,
-  teacherId: string
+  teacherId: string,
+  classId?: string | null
 ): Promise<PaperReviewContext | null> {
   const { data: paper } = await supabaseAdmin
     .from("past_papers")
@@ -63,10 +78,73 @@ export async function loadPaperReviewContext(
 
   const { data: questions } = await supabaseAdmin
     .from("questions")
-    .select("question_number, question_text, topic, marks_available, difficulty, marking_scheme")
+    .select("id, question_number, question_text, topic, marks_available, difficulty, marking_scheme")
     .eq("paper_id", paperId)
     .order("question_number", { ascending: true })
     .limit(200);
+
+  const questionRows = questions ?? [];
+  const questionById = new Map(questionRows.map((question) => [question.id, question]));
+  let studentAttempts: PaperReviewContext["studentAttempts"] = [];
+
+  if (classId && questionRows.length > 0) {
+    const { data: classRow } = await supabaseAdmin
+      .from("classes")
+      .select("id, teacher_id")
+      .eq("id", classId)
+      .single();
+
+    if (classRow?.teacher_id === teacherId) {
+      const { data: members } = await supabaseAdmin
+        .from("class_members")
+        .select("student_id")
+        .eq("class_id", classId)
+        .limit(200);
+
+      const studentIds = (members ?? []).map((member) => member.student_id);
+      const questionIds = questionRows.map((question) => question.id);
+
+      if (studentIds.length > 0 && questionIds.length > 0) {
+        const [{ data: attempts }, { data: profiles }] = await Promise.all([
+          supabaseAdmin
+            .from("attempts")
+            .select("user_id, question_id, answer_text, score, max_score, percentage, feedback, improvements, needs_teacher_review, answer_image_path, created_at")
+            .in("question_id", questionIds)
+            .in("user_id", studentIds)
+            .order("created_at", { ascending: false })
+            .limit(40),
+          supabaseAdmin.from("profiles").select("id, username, full_name").in("id", studentIds),
+        ]);
+
+        const labels = new Map(
+          (profiles ?? []).map((profile) => [
+            profile.id as string,
+            profile.full_name || profile.username || "Student",
+          ])
+        );
+
+        studentAttempts = (attempts ?? []).map((attempt) => {
+          const question = questionById.get(attempt.question_id);
+          return {
+            studentLabel: labels.get(attempt.user_id) ?? "Student",
+            questionNumber: String(question?.question_number ?? "?"),
+            topic: question?.topic ?? null,
+            questionText: String(question?.question_text ?? "").slice(0, 500),
+            answerText: String(attempt.answer_text ?? "").slice(0, 500),
+            score: Number(attempt.score ?? 0),
+            maxScore: Number(attempt.max_score ?? 0),
+            percentage: Number(attempt.percentage ?? 0),
+            feedback: String(attempt.feedback ?? "").slice(0, 500),
+            improvements: Array.isArray(attempt.improvements)
+              ? attempt.improvements.map(String).slice(0, 4)
+              : [],
+            needsTeacherReview: Boolean(attempt.needs_teacher_review || attempt.answer_image_path),
+            at: attempt.created_at,
+          };
+        });
+      }
+    }
+  }
 
   return {
     paper: {
@@ -77,7 +155,7 @@ export async function loadPaperReviewContext(
       paper_number: paper.paper_number,
       question_count: paper.question_count,
     },
-    questions: (questions ?? []).map((q) => ({
+    questions: questionRows.map((q) => ({
       questionNumber: String(q.question_number ?? ""),
       questionText: String(q.question_text ?? ""),
       topic: q.topic ?? null,
@@ -85,6 +163,7 @@ export async function loadPaperReviewContext(
       difficulty: q.difficulty ?? null,
       markingScheme: q.marking_scheme ?? null,
     })),
+    studentAttempts,
   };
 }
 
@@ -167,6 +246,7 @@ ${SHARED_SCOPE_LOCK}
 
 MODE-SPECIFIC RULES:
 - Mode: paper-review. Your context is the paper details + every question, marking scheme, marks, and difficulty.
+- The context may also include studentAttempts for the selected class and paper. Use these when the teacher asks about student answers, lost marks, weak responses, or who needs review. These attempts do not need to be flagged as teacher review to be useful.
 - When asked for a review, evaluate: clarity of wording, difficulty curve across questions, syllabus coverage breadth, balance between recall and application, alignment between question and marking scheme.
 - When suggesting improvements, be specific: cite the question number and propose a concrete rewrite or addition.
 - For specific questions, you may quote short excerpts (≤ 25 words). Do not reproduce the entire paper verbatim.

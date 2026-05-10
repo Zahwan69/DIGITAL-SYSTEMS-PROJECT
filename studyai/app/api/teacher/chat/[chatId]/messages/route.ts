@@ -43,8 +43,8 @@ async function buildSystemForMode(chat: {
     if (!chat.paper_id) {
       return { empty: true, reason: "This chat needs a paper selected. Open the chat header and pick one of your papers." };
     }
-    const ctx = await loadPaperReviewContext(chat.paper_id, teacherId);
-    if (!ctx || ctx.questions.length === 0) {
+    const ctx = await loadPaperReviewContext(chat.paper_id, teacherId, chat.class_id);
+    if (!ctx || (ctx.questions.length === 0 && ctx.studentAttempts.length === 0)) {
       return { empty: true, reason: "The selected paper has no questions saved yet. Re-run the paper analysis and try again." };
     }
     return { empty: false, systemPrompt: buildPaperReviewPrompt(ctx) };
@@ -182,6 +182,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ cha
     return NextResponse.json({ userMessage, assistantMessage });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gemini request failed.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    const fallback =
+      "I could not generate a full AI response just now. Your message was saved, but the AI request failed. Please try again in a moment.";
+
+    const { data: assistantMessage, error: assistantInsertError } = await supabaseAdmin
+      .from("teacher_chat_messages")
+      .insert({ chat_id: chatId, role: "assistant", content: fallback })
+      .select("id, role, content, created_at")
+      .single();
+
+    if (assistantInsertError) {
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+
+    await supabaseAdmin
+      .from("teacher_chats")
+      .update({
+        last_message_at: new Date().toISOString(),
+        ...(chat.title === "New chat" ? { title: content.slice(0, 60) } : {}),
+      })
+      .eq("id", chatId)
+      .eq("teacher_id", gate.userId);
+
+    return NextResponse.json({ userMessage, assistantMessage, aiError: message });
   }
 }

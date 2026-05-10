@@ -182,7 +182,7 @@ export function TeacherChatSurface({ initialChatId }: { initialChatId?: string }
     }
     const payload = (await response.json()) as { id: string };
     setChatId(payload.id);
-    router.replace(`/teacher/chat/${payload.id}`);
+    window.history.replaceState(null, "", `/teacher/chat/${payload.id}`);
     return payload.id;
   }
 
@@ -206,6 +206,7 @@ export function TeacherChatSurface({ initialChatId }: { initialChatId?: string }
         body: JSON.stringify({ content }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
+        userMessage?: ChatMessage;
         assistantMessage?: ChatMessage;
         error?: string;
       };
@@ -213,13 +214,26 @@ export function TeacherChatSurface({ initialChatId }: { initialChatId?: string }
         throw new Error(payload.error ?? "The AI request failed.");
       }
       const assistantMessage = payload.assistantMessage;
-      setMessages((current) => [...current, assistantMessage]);
+      setMessages((current) => [
+        ...current.map((message) =>
+          message.id === localMessage.id ? payload.userMessage ?? localMessage : message
+        ),
+        assistantMessage,
+      ]);
       const chatResponse = await authFetch("/api/teacher/chat");
       if (chatResponse.ok) setChats((await chatResponse.json()) as ChatListItem[]);
     } catch (error) {
-      setDraft(content);
-      setMessages((current) => current.filter((message) => message.id !== localMessage.id));
-      setSendError(error instanceof Error ? error.message : "Could not send the message.");
+      const message = error instanceof Error ? error.message : "Could not send the message.";
+      setSendError(message);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: message,
+          created_at: new Date().toISOString(),
+        },
+      ]);
     } finally {
       setLoading(false);
     }
