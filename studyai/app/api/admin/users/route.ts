@@ -10,6 +10,23 @@ function isRole(value: unknown): value is Role {
   return value === "student" || value === "teacher" || value === "admin";
 }
 
+async function listAllAuthUsers() {
+  const users = [];
+  let authPage = 1;
+  const perPage = 100;
+
+  while (true) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+      page: authPage,
+      perPage,
+    });
+    if (error) throw error;
+    users.push(...(data.users ?? []));
+    if ((data.users ?? []).length < perPage) return users;
+    authPage += 1;
+  }
+}
+
 export async function GET(request: Request) {
   const auth = await authenticateRequest(request);
   if (!auth.ok) {
@@ -24,17 +41,31 @@ export async function GET(request: Request) {
   const roleFilter = searchParams.get("role")?.trim() ?? "";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(searchParams.get("pageSize")) || 25));
+  const validRoleFilter = isRole(roleFilter) ? roleFilter : "";
+  const hasFilter = Boolean(q || validRoleFilter);
 
-  const { data: listData, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
-    page,
-    perPage: pageSize,
-  });
-
-  if (listErr) {
-    return NextResponse.json({ error: listErr.message }, { status: 500 });
+  let users;
+  let unfilteredTotal = 0;
+  try {
+    if (hasFilter) {
+      users = await listAllAuthUsers();
+      unfilteredTotal = users.length;
+    } else {
+      const { data: listData, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage: pageSize,
+      });
+      if (listErr) {
+        return NextResponse.json({ error: listErr.message }, { status: 500 });
+      }
+      users = listData.users ?? [];
+      unfilteredTotal = listData.total ?? users.length;
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to list users.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  const users = listData.users ?? [];
   const ids = users.map((u) => u.id);
   let profiles: Record<
     string,
@@ -103,15 +134,20 @@ export async function GET(request: Request) {
         (r.full_name && r.full_name.toLowerCase().includes(q))
     );
   }
-  if (roleFilter && ["student", "teacher", "admin"].includes(roleFilter)) {
-    rows = rows.filter((r) => r.role === roleFilter);
+  if (validRoleFilter) {
+    rows = rows.filter((r) => r.role === validRoleFilter);
   }
 
+  const total = hasFilter ? rows.length : unfilteredTotal;
+  const maxPage = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, maxPage);
+  const pageRows = hasFilter ? rows.slice((safePage - 1) * pageSize, safePage * pageSize) : rows;
+
   return NextResponse.json({
-    users: rows,
-    page,
+    users: pageRows,
+    page: safePage,
     pageSize,
-    total: listData.total ?? rows.length,
+    total,
   });
 }
 

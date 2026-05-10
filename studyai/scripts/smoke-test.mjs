@@ -110,6 +110,18 @@ async function runAdminSmoke(adminToken) {
   assert(usersByEmail.get(ACCOUNTS.student)?.role === "student", `${ACCOUNTS.student} is not shown as student.`);
   pass("admin users directory includes seeded accounts");
 
+  const filteredAdmins = await api("/api/admin/users?role=admin&page=99&pageSize=25", { token: adminToken });
+  assert(filteredAdmins.users.length >= 1, "Role-filtered admin table returned an empty out-of-range page.");
+  assert(
+    filteredAdmins.users.every((user) => user.role === "admin"),
+    "Role-filtered admin table returned a non-admin row."
+  );
+  assert(
+    filteredAdmins.users.some((user) => user.email === ACCOUNTS.admin),
+    `Role-filtered admin table missing ${ACCOUNTS.admin}.`
+  );
+  pass("admin user role filter paginates after filtering");
+
   const tempEmail = `student-smoke-${Date.now()}@studyai.test`;
   const created = await api("/api/admin/users", {
     token: adminToken,

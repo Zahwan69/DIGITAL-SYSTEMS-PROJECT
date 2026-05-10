@@ -114,6 +114,10 @@ export default function AdminUsersPage() {
     }
     setUsers((json.users ?? []) as UserRow[]);
     setTotal(Number(json.total ?? 0));
+    const resolvedPage = Number(json.page ?? page);
+    if (resolvedPage !== page) {
+      setPage(Math.max(1, resolvedPage));
+    }
     setLoading(false);
   }, [page, q, roleFilter]);
 
@@ -348,7 +352,7 @@ export default function AdminUsersPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <CardTitle>User directory</CardTitle>
-                <CardDescription>Search is applied to the current auth page returned by Supabase.</CardDescription>
+                <CardDescription>Search and role filters are applied before pagination.</CardDescription>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
