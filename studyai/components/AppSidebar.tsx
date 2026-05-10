@@ -9,7 +9,6 @@ import {
   ChevronsRight,
   ClipboardList,
   FileText,
-  GraduationCap,
   History,
   LayoutDashboard,
   Lightbulb,
@@ -21,7 +20,6 @@ import {
 
 import { SignOutButton } from "@/components/SignOutButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { BRAND_NAME } from "@/lib/brand";
 import { pathIsActive, type AppRole } from "@/lib/nav-config";
 import { cn } from "@/lib/utils";
 
@@ -85,12 +83,6 @@ function buildGroups(role: AppRole): NavGroup[] {
   return [studyGroup("student")];
 }
 
-function homeForRole(role: AppRole) {
-  if (role === "admin") return "/admin/dashboard";
-  if (role === "teacher") return "/teacher/dashboard";
-  return "/dashboard";
-}
-
 function profileInitial(profile: ProfileSummary) {
   const source = profile?.full_name || profile?.username || profile?.email || "A";
   return source.trim().charAt(0).toUpperCase() || "A";
@@ -100,10 +92,12 @@ function ProfileMenu({
   profile,
   role,
   collapsed,
+  placement = "bottom",
 }: {
   profile: ProfileSummary;
   role: AppRole | null;
   collapsed: boolean;
+  placement?: "top" | "bottom";
 }) {
   const [open, setOpen] = useState(false);
   const displayName = profile?.full_name || profile?.username || "Account";
@@ -116,8 +110,11 @@ function ProfileMenu({
       {open ? (
         <div
           className={cn(
-            "absolute bottom-full z-[70] mb-2 w-72 rounded-lg border border-border bg-surface p-3 shadow-xl",
-            collapsed ? "lg:bottom-0 lg:left-full lg:mb-0 lg:ml-2" : "left-0"
+            "absolute z-[70] w-72 rounded-lg border border-border bg-surface p-3 shadow-xl",
+            placement === "top" ? "left-0 top-full mt-2" : "bottom-full left-0 mb-2",
+            collapsed && "lg:left-full lg:ml-2",
+            collapsed && placement === "top" && "lg:top-0 lg:mt-0",
+            collapsed && placement === "bottom" && "lg:bottom-0 lg:mb-0"
           )}
         >
           <div className="flex items-center gap-3 border-b border-border pb-3">
@@ -188,7 +185,6 @@ export function AppSidebar({
   const pathname = usePathname();
   const activeRole = (role ?? "student") as AppRole;
   const groups = buildGroups(activeRole);
-  const home = homeForRole(activeRole);
   const collapsedClass = desktopCollapsed ? "lg:w-16" : "lg:w-64";
 
   useEffect(() => {
@@ -234,16 +230,9 @@ export function AppSidebar({
             "justify-between px-4"
           )}
         >
-          <Link
-            href={home}
-            className={cn("flex items-center gap-2 text-text", desktopCollapsed && "lg:justify-center")}
-            aria-label={BRAND_NAME}
-          >
-            <GraduationCap className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
-            <span className={cn("text-sm font-semibold tracking-tight", desktopCollapsed && "lg:hidden")}>
-              {BRAND_NAME}
-            </span>
-          </Link>
+          <div className={cn("min-w-0 flex-1", desktopCollapsed && "lg:flex-none")}>
+            <ProfileMenu profile={profile} role={role} collapsed={desktopCollapsed} placement="top" />
+          </div>
 
           <button
             type="button"
@@ -311,9 +300,6 @@ export function AppSidebar({
           ))}
         </nav>
 
-        <div className={cn("shrink-0 border-t border-border py-3", desktopCollapsed ? "lg:px-2" : "lg:px-3", "px-3")}>
-          <ProfileMenu profile={profile} role={role} collapsed={desktopCollapsed} />
-        </div>
       </aside>
     </>
   );
