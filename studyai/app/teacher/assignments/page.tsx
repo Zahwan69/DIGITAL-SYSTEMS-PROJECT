@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Eye } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
@@ -38,6 +38,35 @@ type Row = {
   };
 };
 
+type DetailedAttempt = {
+  id: string;
+  student_name: string;
+  question: {
+    question_number: string;
+    question_text: string;
+    topic: string | null;
+    marks_available: number;
+    difficulty: string | null;
+  };
+  answer_text: string;
+  answer_image_url: string | null;
+  needs_teacher_review: boolean;
+  score: number;
+  max_score: number;
+  percentage: number;
+  feedback: string;
+  strengths: string[];
+  improvements: string[];
+  model_answer: string;
+  created_at: string;
+};
+
+type ReviewState = {
+  loading: boolean;
+  error: string | null;
+  attempts: DetailedAttempt[];
+};
+
 function AssignmentsInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,6 +76,7 @@ function AssignmentsInner() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reviewByAssignment, setReviewByAssignment] = useState<Record<string, ReviewState>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +99,59 @@ function AssignmentsInner() {
     setRows(json.assignments ?? []);
     setLoading(false);
   }, [q, router]);
+
+  const loadReview = useCallback(
+    async (assignmentId: string) => {
+      const existing = reviewByAssignment[assignmentId];
+      if (existing && !existing.error) {
+        setReviewByAssignment((current) => {
+          const next = { ...current };
+          delete next[assignmentId];
+          return next;
+        });
+        return;
+      }
+
+      setReviewByAssignment((current) => ({
+        ...current,
+        [assignmentId]: { loading: true, error: null, attempts: [] },
+      }));
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        router.push("/auth/login");
+        return;
+      }
+
+      const res = await fetch(`/api/teacher/assignments/${assignmentId}/attempts`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setReviewByAssignment((current) => ({
+          ...current,
+          [assignmentId]: {
+            loading: false,
+            error: json.error ?? "Failed to load attempts.",
+            attempts: [],
+          },
+        }));
+        return;
+      }
+
+      setReviewByAssignment((current) => ({
+        ...current,
+        [assignmentId]: {
+          loading: false,
+          error: null,
+          attempts: json.attempts ?? [],
+        },
+      }));
+    },
+    [reviewByAssignment, router]
+  );
 
   useEffect(() => {
     void Promise.resolve().then(() => load());
@@ -140,6 +223,95 @@ function AssignmentsInner() {
                           </ul>
                         </details>
                       ) : null}
+                      {reviewByAssignment[r.id] ? (
+                        <div className="mt-3 rounded-lg border border-border bg-surface p-3">
+                          {reviewByAssignment[r.id].loading ? (
+                            <p className="text-xs text-text-muted">Loading student answers...</p>
+                          ) : reviewByAssignment[r.id].error ? (
+                            <p className="text-xs text-danger">{reviewByAssignment[r.id].error}</p>
+                          ) : reviewByAssignment[r.id].attempts.length === 0 ? (
+                            <p className="text-xs text-text-muted">No student answers yet.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                                  Student answer review
+                                </p>
+                                <p className="text-xs text-text-muted">
+                                  {reviewByAssignment[r.id].attempts.length} attempts
+                                </p>
+                              </div>
+                              {reviewByAssignment[r.id].attempts.map((attempt) => (
+                                <article key={attempt.id} className="rounded-md border border-border bg-surface-alt p-3">
+                                  <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div>
+                                      <p className="font-medium text-text">{attempt.student_name}</p>
+                                      <p className="text-xs text-text-muted">
+                                        Q{attempt.question.question_number}
+                                        {attempt.question.topic ? ` / ${attempt.question.topic}` : ""}
+                                      </p>
+                                    </div>
+                                    <p className="text-xs font-medium tabular-nums text-text">
+                                      {attempt.score}/{attempt.max_score} / {attempt.percentage}%
+                                    </p>
+                                  </div>
+                                  {attempt.needs_teacher_review ? (
+                                    <span className="mt-2 inline-flex rounded-full border border-warning/40 bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-text">
+                                      Teacher review flagged
+                                    </span>
+                                  ) : null}
+                                  <div className="mt-2 space-y-2 text-xs">
+                                    <div>
+                                      <p className="font-medium text-text-muted">Question</p>
+                                      <p className="mt-0.5 line-clamp-3 text-text">{attempt.question.question_text}</p>
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-text-muted">Student answer</p>
+                                      <p className="mt-0.5 whitespace-pre-wrap text-text">
+                                        {attempt.answer_text || "No written answer submitted."}
+                                      </p>
+                                      {attempt.answer_image_url ? (
+                                        <a
+                                          href={attempt.answer_image_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="mt-1 inline-flex font-medium text-text hover:underline"
+                                        >
+                                          Open answer attachment
+                                        </a>
+                                      ) : null}
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-text-muted">AI feedback</p>
+                                      <p className="mt-0.5 text-text">{attempt.feedback}</p>
+                                    </div>
+                                    <details>
+                                      <summary className="cursor-pointer font-medium text-text-muted hover:text-text">
+                                        Strengths, improvements, and model answer
+                                      </summary>
+                                      <div className="mt-1 space-y-1 text-text">
+                                        <p>
+                                          <span className="font-medium">Strengths:</span>{" "}
+                                          {attempt.strengths.length ? attempt.strengths.join(", ") : "None recorded."}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">Improvements:</span>{" "}
+                                          {attempt.improvements.length
+                                            ? attempt.improvements.join(", ")
+                                            : "None recorded."}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">Model answer:</span> {attempt.model_answer}
+                                        </p>
+                                      </div>
+                                    </details>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 align-top text-text-muted">{r.class_name}</td>
                     <td className="px-4 py-3 align-top tabular-nums text-text-muted">
@@ -154,9 +326,21 @@ function AssignmentsInner() {
                         : "-"}
                     </td>
                     <td className="px-4 py-3 align-top">
-                      <Link href={`/papers/${r.paper_id}`} className="text-text hover:underline">
-                        Open
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={r.attempt_summary.attempt_count === 0}
+                          onClick={() => void loadReview(r.id)}
+                        >
+                          <Eye className="h-4 w-4" aria-hidden />
+                          {reviewByAssignment[r.id] ? "Hide" : "Review"}
+                        </Button>
+                        <Link href={`/papers/${r.paper_id}`} className="text-xs font-medium text-text hover:underline">
+                          Open
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

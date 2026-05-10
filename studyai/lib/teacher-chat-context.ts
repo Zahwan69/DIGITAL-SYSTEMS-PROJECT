@@ -13,6 +13,21 @@ export type ClassSnapshot = {
   difficultyMix: Array<{ difficulty: "easy" | "medium" | "hard"; attempts: number; avgPercentage: number }>;
   assignments: Array<{ title: string; dueAt: string | null; assigned: number; attempted: number; completed: number }>;
   recentActivity: Array<{ studentLabel: string; assignmentOrPaper: string; percentage: number; at: string; needsTeacherReview: boolean }>;
+  recentAttemptDetails: Array<{
+    studentLabel: string;
+    assignmentOrPaper: string;
+    questionNumber: string;
+    topic: string | null;
+    questionText: string;
+    answerText: string;
+    score: number;
+    maxScore: number;
+    percentage: number;
+    feedback: string;
+    improvements: string[];
+    at: string;
+    needsTeacherReview: boolean;
+  }>;
 };
 
 function studentLabel(profile: { username?: string | null; full_name?: string | null }) {
@@ -75,7 +90,7 @@ export async function buildClassSnapshot(classId: string, teacherId: string): Pr
     paperIds.length > 0
       ? await supabaseAdmin
           .from("questions")
-          .select("id, paper_id, topic, difficulty")
+          .select("id, paper_id, question_number, question_text, topic, difficulty")
           .in("paper_id", paperIds)
           .limit(200)
       : { data: [] };
@@ -88,7 +103,7 @@ export async function buildClassSnapshot(classId: string, teacherId: string): Pr
     questionIds.length > 0 && studentIds.length > 0
       ? await supabaseAdmin
           .from("attempts")
-          .select("id, user_id, question_id, percentage, created_at, answer_image_path, needs_teacher_review")
+          .select("id, user_id, question_id, answer_text, score, max_score, percentage, feedback, improvements, created_at, answer_image_path, needs_teacher_review")
           .in("question_id", questionIds)
           .in("user_id", studentIds)
           .gte("created_at", since.toISOString())
@@ -199,6 +214,26 @@ export async function buildClassSnapshot(classId: string, teacherId: string): Pr
         studentLabel: labels.get(attempt.user_id) ?? "Student",
         assignmentOrPaper: question ? paperTitleById.get(question.paper_id) ?? "Paper" : "Paper",
         percentage: Number(attempt.percentage ?? 0),
+        at: attempt.created_at,
+        needsTeacherReview: Boolean(attempt.needs_teacher_review || attempt.answer_image_path),
+      };
+    }),
+    recentAttemptDetails: attemptRows.slice(0, 20).map((attempt) => {
+      const question = questionById.get(attempt.question_id);
+      return {
+        studentLabel: labels.get(attempt.user_id) ?? "Student",
+        assignmentOrPaper: question ? paperTitleById.get(question.paper_id) ?? "Paper" : "Paper",
+        questionNumber: String(question?.question_number ?? "?"),
+        topic: question?.topic ?? null,
+        questionText: String(question?.question_text ?? "").slice(0, 500),
+        answerText: String(attempt.answer_text ?? "").slice(0, 500),
+        score: Number(attempt.score ?? 0),
+        maxScore: Number(attempt.max_score ?? 0),
+        percentage: Number(attempt.percentage ?? 0),
+        feedback: String(attempt.feedback ?? "").slice(0, 500),
+        improvements: Array.isArray(attempt.improvements)
+          ? attempt.improvements.map(String).slice(0, 4)
+          : [],
         at: attempt.created_at,
         needsTeacherReview: Boolean(attempt.needs_teacher_review || attempt.answer_image_path),
       };

@@ -162,6 +162,17 @@ async function runTeacherSmoke(teacherToken) {
   assert(assignments.assignments.length >= 1, "Teacher has no assignments.");
   pass("teacher assignments load");
 
+  const assignmentAttempts = await api(`/api/teacher/assignments/${assignments.assignments[0].id}/attempts`, {
+    token: teacherToken,
+  });
+  assert(Array.isArray(assignmentAttempts.attempts), "Teacher assignment attempts response is invalid.");
+  assert(assignmentAttempts.attempts.length >= 1, "Teacher assignment has no attempt details.");
+  assert(
+    typeof assignmentAttempts.attempts[0].answer_text === "string",
+    "Teacher attempt details are missing student answer text."
+  );
+  pass("teacher can review individual attempt answers");
+
   const chat = await api("/api/teacher/chat", {
     token: teacherToken,
     method: "POST",
