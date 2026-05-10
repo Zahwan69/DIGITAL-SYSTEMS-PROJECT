@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { logAdminAction } from "@/lib/admin-audit";
 import { authenticateRequest, requireAdmin } from "@/lib/api-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+
+type Role = "student" | "teacher" | "admin";
 
 export async function GET(request: Request) {
   const auth = await authenticateRequest(request);
@@ -83,5 +86,79 @@ export async function GET(request: Request) {
     page,
     pageSize,
     total: listData.total ?? rows.length,
+  });
+}
+
+export async function POST(request: Request) {
+  const auth = await authenticateRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.message }, { status: auth.status });
+  }
+  if (!(await requireAdmin(auth.userId))) {
+    return new NextResponse(null, { status: 403 });
+  }
+
+  const body = (await request.json().catch(() => null)) as {
+    email?: string;
+    fullName?: string;
+    role?: string;
+    password?: string;
+  } | null;
+
+  const email = body?.email?.trim().toLowerCase() ?? "";
+  const fullName = body?.fullName?.trim() ?? "";
+  const role = body?.role as Role | undefined;
+  const password = body?.password?.trim() || email;
+
+  if (!email || !email.includes("@")) {
+    return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+  }
+  if (!role || !["student", "teacher", "admin"].includes(role)) {
+    return NextResponse.json({ error: "Invalid role." }, { status: 400 });
+  }
+  if (password.length < 6) {
+    return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
+  }
+
+  const username = email.split("@")[0] || "user";
+  const displayName = fullName || username;
+
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: displayName, username },
+  });
+
+  if (error || !data.user) {
+    return NextResponse.json({ error: error?.message ?? "Failed to create user." }, { status: 400 });
+  }
+
+  const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
+    id: data.user.id,
+    username,
+    full_name: displayName,
+    role,
+  });
+
+  if (profileError) {
+    await supabaseAdmin.auth.admin.deleteUser(data.user.id);
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
+  await logAdminAction(auth.userId, "create_user", "user", data.user.id, { email, role });
+
+  return NextResponse.json({
+    user: {
+      id: data.user.id,
+      email,
+      username,
+      full_name: displayName,
+      role,
+      xp: 0,
+      level: 0,
+      last_study_date: null,
+      created_at: data.user.created_at,
+    },
   });
 }

@@ -4,6 +4,7 @@
 //   node scripts/seed.mjs
 //
 // Optional:
+//   $env:SEED_RESET_ACCOUNTS = "false"
 //   $env:SEED_TEACHER_EMAIL = "you@example.com"
 //   $env:SEED_TEACHER_NAME = "Your Name"
 //   $env:SEED_ADMIN_EMAIL = "admin@example.com"
@@ -33,11 +34,11 @@ loadEnvFile(resolve(process.cwd(), ".env"));
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PRIMARY_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@studyai-test.local";
-const PRIMARY_ADMIN_NAME = process.env.SEED_ADMIN_NAME || "StudyAI Admin";
-const PRIMARY_TEACHER_EMAIL = process.env.SEED_TEACHER_EMAIL || "teacher@studyai-test.local";
-const PRIMARY_TEACHER_NAME = process.env.SEED_TEACHER_NAME || "Demo Teacher";
-const TEST_PASSWORD = "studyai-test-password";
+const PRIMARY_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@studyai.test";
+const PRIMARY_ADMIN_NAME = process.env.SEED_ADMIN_NAME || "Admin";
+const PRIMARY_TEACHER_EMAIL = process.env.SEED_TEACHER_EMAIL || "teacher1@studyai.test";
+const PRIMARY_TEACHER_NAME = process.env.SEED_TEACHER_NAME || "Teacher1";
+const RESET_SEEDED_ACCOUNTS = process.env.SEED_RESET_ACCOUNTS !== "false";
 
 if (!SUPABASE_URL || !SERVICE_ROLE) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
@@ -48,40 +49,64 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const FAKE_TEACHERS = [
-  ["ms.ahmed@studyai-test.local", "Mariam Ahmed"],
-  ["mr.chen@studyai-test.local", "David Chen"],
-  ["ms.kovacs@studyai-test.local", "Eszter Kovacs"],
+const FAKE_TEACHERS = Array.from({ length: 3 }, (_, index) => {
+  const number = index + 2;
+  return [`teacher${number}@studyai.test`, `Teacher${number}`];
+});
+
+const STUDENTS = Array.from({ length: 26 }, (_, index) => {
+  const number = index + 1;
+  return [`student${number}@studyai.test`, `Student${number}`];
+});
+
+const LEGACY_SEED_EMAILS = [
+  "admin@studyai-test.local",
+  "teacher@studyai-test.local",
+  "ms.ahmed@studyai-test.local",
+  "mr.chen@studyai-test.local",
+  "ms.kovacs@studyai-test.local",
+  "alex@studyai-test.local",
+  "bashir@studyai-test.local",
+  "cara@studyai-test.local",
+  "devi@studyai-test.local",
+  "eli@studyai-test.local",
+  "fatima@studyai-test.local",
+  "gabriel@studyai-test.local",
+  "hira@studyai-test.local",
+  "ibrahim@studyai-test.local",
+  "jasmin@studyai-test.local",
+  "kenji@studyai-test.local",
+  "lila@studyai-test.local",
+  "mateo@studyai-test.local",
+  "noor@studyai-test.local",
+  "ola@studyai-test.local",
+  "priya@studyai-test.local",
+  "quinn@studyai-test.local",
+  "rashid@studyai-test.local",
+  "sana@studyai-test.local",
+  "tariq@studyai-test.local",
+  "uma@studyai-test.local",
+  "vera@studyai-test.local",
+  "wei@studyai-test.local",
+  "xander@studyai-test.local",
+  "yusra@studyai-test.local",
+  "zane@studyai-test.local",
 ];
 
-const STUDENTS = [
-  ["alex@studyai-test.local", "Alex Hassan"],
-  ["bashir@studyai-test.local", "Bashir Mahmood"],
-  ["cara@studyai-test.local", "Cara Lin"],
-  ["devi@studyai-test.local", "Devi Patel"],
-  ["eli@studyai-test.local", "Eli Tanaka"],
-  ["fatima@studyai-test.local", "Fatima Rahim"],
-  ["gabriel@studyai-test.local", "Gabriel Souza"],
-  ["hira@studyai-test.local", "Hira Khan"],
-  ["ibrahim@studyai-test.local", "Ibrahim Diallo"],
-  ["jasmin@studyai-test.local", "Jasmin Velasco"],
-  ["kenji@studyai-test.local", "Kenji Yamada"],
-  ["lila@studyai-test.local", "Lila Petrov"],
-  ["mateo@studyai-test.local", "Mateo Aguilar"],
-  ["noor@studyai-test.local", "Noor Saeed"],
-  ["ola@studyai-test.local", "Ola Adeyemi"],
-  ["priya@studyai-test.local", "Priya Sharma"],
-  ["quinn@studyai-test.local", "Quinn Walsh"],
-  ["rashid@studyai-test.local", "Rashid Karim"],
-  ["sana@studyai-test.local", "Sana Iqbal"],
-  ["tariq@studyai-test.local", "Tariq Mansour"],
-  ["uma@studyai-test.local", "Uma Iyer"],
-  ["vera@studyai-test.local", "Vera Novak"],
-  ["wei@studyai-test.local", "Wei Zhang"],
-  ["xander@studyai-test.local", "Xander Rivera"],
-  ["yusra@studyai-test.local", "Yusra Hashmi"],
-  ["zane@studyai-test.local", "Zane Owusu"],
+const GENERATED_SEED_EMAILS = [
+  PRIMARY_ADMIN_EMAIL,
+  PRIMARY_TEACHER_EMAIL,
+  ...FAKE_TEACHERS.map(([email]) => email),
+  ...STUDENTS.map(([email]) => email),
 ];
+
+const SEED_EMAILS_TO_RESET = new Set(
+  [...GENERATED_SEED_EMAILS, ...LEGACY_SEED_EMAILS].map((email) => email.toLowerCase())
+);
+
+function passwordForEmail(email) {
+  return email;
+}
 
 const SUBJECTS = [
   { name: "IGCSE Mathematics", syllabus_code: "0580", level: "IGCSE" },
@@ -184,6 +209,37 @@ async function findUserByEmail(email) {
   }
 }
 
+async function listAllAuthUsers() {
+  const users = [];
+  let page = 1;
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    users.push(...data.users);
+    if (data.users.length < 200) return users;
+    page += 1;
+  }
+}
+
+async function resetSeededAccounts() {
+  const authUsers = await listAllAuthUsers();
+  const usersToDelete = authUsers.filter((user) => {
+    const email = user.email?.toLowerCase();
+    return email ? SEED_EMAILS_TO_RESET.has(email) : false;
+  });
+
+  if (usersToDelete.length === 0) {
+    process.stdout.write("  no seeded auth users to reset\n");
+    return;
+  }
+
+  for (const user of usersToDelete) {
+    const { error } = await supabase.auth.admin.deleteUser(user.id);
+    if (error) throw new Error(`deleteUser ${user.email}: ${error.message}`);
+    process.stdout.write(`  deleted  ${user.email}\n`);
+  }
+}
+
 async function ensureUser(email, fullName, role) {
   const existing = await findUserByEmail(email);
   let userId;
@@ -192,10 +248,16 @@ async function ensureUser(email, fullName, role) {
   if (existing) {
     userId = existing.id;
     process.stdout.write(`  existing ${email}\n`);
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      password: passwordForEmail(email),
+      email_confirm: true,
+      user_metadata: { full_name: fullName, username: email.split("@")[0] },
+    });
+    if (error) throw new Error(`updateUser ${email}: ${error.message}`);
   } else {
     const { data, error } = await supabase.auth.admin.createUser({
       email,
-      password: TEST_PASSWORD,
+      password: passwordForEmail(email),
       email_confirm: true,
       user_metadata: { full_name: fullName, username: email.split("@")[0] },
     });
@@ -344,7 +406,14 @@ async function updateStudentProgress(studentIds) {
 async function main() {
   console.log("Seeding StudyAI demo data\n");
 
-  console.log("1) Users");
+  console.log("1) Reset seeded accounts");
+  if (RESET_SEEDED_ACCOUNTS) {
+    await resetSeededAccounts();
+  } else {
+    console.log("  skipped because SEED_RESET_ACCOUNTS=false");
+  }
+
+  console.log("\n2) Users");
   await ensureUser(PRIMARY_ADMIN_EMAIL, PRIMARY_ADMIN_NAME, "admin");
 
   const teacherUsers = [];
@@ -361,7 +430,7 @@ async function main() {
   const teacherIds = teacherUsers.map((user) => user.id);
   const studentIds = studentUsers.map((user) => user.id);
 
-  console.log("\n2) Subjects");
+  console.log("\n3) Subjects");
   const subjectIds = [];
   for (const subject of SUBJECTS) {
     const id = await upsertReturningId("subjects", subject, {
@@ -372,7 +441,7 @@ async function main() {
     console.log(`  ready ${subject.name}`);
   }
 
-  console.log("\n3) Teacher subject links");
+  console.log("\n4) Teacher subject links");
   for (const [teacherIndexText, subjectIndexes] of Object.entries(TEACHER_SUBJECT_INDEXES)) {
     const teacherIndex = Number(teacherIndexText);
     for (const subjectIndex of subjectIndexes) {
@@ -387,7 +456,7 @@ async function main() {
   }
   console.log("  ready teacher_subjects");
 
-  console.log("\n4) Past papers and questions");
+  console.log("\n5) Past papers and questions");
   const paperIds = [];
   const questionsByPaperIndex = {};
   for (let index = 0; index < PAPER_DEFS.length; index += 1) {
@@ -416,7 +485,7 @@ async function main() {
     console.log(`  ready ${subject.name} ${paperDef.year} ${paperDef.paper_number} (${questions.length} questions)`);
   }
 
-  console.log("\n5) Classes, members, and assignments");
+  console.log("\n6) Classes, members, and assignments");
   const seededQuestionIds = Object.values(questionsByPaperIndex).flat().map((question) => question.id);
   if (seededQuestionIds.length > 0) {
     const { error } = await supabase
@@ -480,22 +549,22 @@ async function main() {
     console.log(`  ready ${classDef.name}: ${classStudentIds.length} students, ${attemptRows.length} attempts`);
   }
 
-  console.log("\n6) Student XP and levels");
+  console.log("\n7) Student XP and levels");
   await updateStudentProgress(studentIds);
   console.log("  ready progress");
 
   console.log("\nSeed complete\n");
   console.log("Main test logins:");
-  console.log(`  Admin:   ${PRIMARY_ADMIN_EMAIL}`);
-  console.log(`  Teacher: ${PRIMARY_TEACHER_EMAIL}`);
-  console.log(`  Student: ${STUDENTS[0][0]}`);
-  console.log(`  Student: ${STUDENTS[8][0]}`);
-  console.log(`  Password for generated test accounts: ${TEST_PASSWORD}`);
+  console.log(`  Admin:   ${PRIMARY_ADMIN_EMAIL} / ${passwordForEmail(PRIMARY_ADMIN_EMAIL)}`);
+  console.log(`  Teacher: ${PRIMARY_TEACHER_EMAIL} / ${passwordForEmail(PRIMARY_TEACHER_EMAIL)}`);
+  console.log(`  Student: ${STUDENTS[0][0]} / ${passwordForEmail(STUDENTS[0][0])}`);
+  console.log(`  Student: ${STUDENTS[8][0]} / ${passwordForEmail(STUDENTS[8][0])}`);
+  console.log("  Password for every generated test account is the account email.");
   console.log("\nClass join codes:");
   CLASS_DEFS.forEach((classDef) => console.log(`  ${classDef.name}: ${classDef.join_code}`));
   console.log("\nSuggested smoke test:");
   console.log("  1. Log in as the teacher and open Teacher Dashboard, Classes, Assignments, Insights, AI Chat.");
-  console.log("  2. Log in as alex@studyai-test.local and open Dashboard, My Papers, then attempt a seeded paper.");
+  console.log("  2. Log in as student1@studyai.test and open Dashboard, My Papers, then attempt a seeded paper.");
   console.log("  3. In Teacher AI, ask: Which topics are weakest in IGCSE Mathematics 11A?");
 }
 
