@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { buildAnalysePrompt, generateGeminiContent } from "@/lib/gemini";
 import { cropPng, renderPdfPageToPng } from "@/lib/pdf-render";
+import {
+  parseQuestionPaperDeterministic,
+  type ParsedQuestion,
+  type ParsedQuestionPaper,
+  type ParserDebug,
+} from "@/lib/pdf-parser";
 import { ensureBucket } from "@/lib/storage-buckets";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -18,6 +24,7 @@ type ExtractedQuestion = {
   hasDiagram: boolean;
   diagramPage: number | null;
   diagramBoundingBox: BoundingBox | null;
+  parsed?: ParsedQuestion | null;
 };
 
 type LooseQuestion = {
@@ -52,7 +59,7 @@ function parseBoundingBox(raw: unknown): BoundingBox | null {
   const [yMin, xMin, yMax, xMax] = numbers as [number, number, number, number];
   if (xMin < 0 || yMin < 0 || xMax > 1000 || yMax > 1000) return null;
   if (xMax - xMin < 20 || yMax - yMin < 20) return null;
-  // Reject boxes covering >85% of the page — almost always hallucinated
+  // Reject boxes covering >85% of the page; almost always hallucinated.
   const area = (xMax - xMin) * (yMax - yMin);
   if (area > 850_000) return null;
   return [yMin, xMin, yMax, xMax];
@@ -205,6 +212,89 @@ function normalizeDifficulty(value: string): "easy" | "medium" | "hard" {
   return "medium";
 }
 
+function normalizeQuestionKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function matchGeminiQuestion(
+  parsedQuestion: ParsedQuestion,
+  index: number,
+  geminiQuestions: ExtractedQuestion[]
+) {
+  const key = normalizeQuestionKey(parsedQuestion.id);
+  return (
+    geminiQuestions.find((question) => normalizeQuestionKey(question.questionNumber) === key) ??
+    geminiQuestions[index] ??
+    null
+  );
+}
+
+function fromParsedQuestion(
+  question: ParsedQuestion,
+  index: number,
+  geminiQuestions: ExtractedQuestion[]
+): ExtractedQuestion {
+  const enrichment = matchGeminiQuestion(question, index, geminiQuestions);
+
+  return {
+    questionNumber: question.id,
+    questionText: question.text,
+    topic: enrichment?.topic?.trim() || "General",
+    marksAvailable:
+      question.marksAvailable > 0
+        ? question.marksAvailable
+        : Number.isFinite(enrichment?.marksAvailable)
+          ? enrichment!.marksAvailable
+          : 0,
+    difficulty: normalizeDifficulty(enrichment?.difficulty ?? "medium"),
+    markingScheme: enrichment?.markingScheme?.trim() || null,
+    hasDiagram: question.visuals.length > 0,
+    diagramPage: question.visuals[0]?.pageNumber ?? null,
+    diagramBoundingBox: null,
+    parsed: question,
+  };
+}
+
+function buildEnrichmentPrompt(questions: ParsedQuestion[], options: { hasMarkScheme: boolean }) {
+  const markSchemeRule = options.hasMarkScheme
+    ? "- An official mark scheme PDF is attached. Map mark scheme guidance to the provided top-level question ids. If unsure, return null for markingScheme."
+    : "- No official mark scheme PDF is attached. Return null for markingScheme if unsure.";
+
+  return `You enrich already-extracted Cambridge exam questions.
+The parser has already decided question boundaries and geometry. Do not create, split, merge, reorder, or locate questions.
+
+Return ONLY valid JSON:
+{
+  "questions": [
+    {
+      "questionNumber": "1",
+      "topic": "specific Cambridge syllabus topic name",
+      "marksAvailable": 6,
+      "difficulty": "easy|medium|hard",
+      "markingScheme": "concise marking guidance or null"
+    }
+  ]
+}
+
+Rules:
+- Return exactly one object for each provided questionNumber, in the same order.
+- Do not include diagramPage, diagramBoundingBox, image data, or visual geometry.
+- marksAvailable should match the provided marks unless the value is 0 and the mark scheme clearly gives a better top-level total.
+- difficulty must be easy, medium, or hard.
+${markSchemeRule}
+
+Extracted questions:
+${JSON.stringify(
+  questions.map((question) => ({
+    questionNumber: question.id,
+    questionText: question.text,
+    marksAvailable: question.marksAvailable,
+  })),
+  null,
+  2
+)}`;
+}
+
 function isPdfUpload(file: File) {
   if (/\.pdf$/i.test(file.name)) return true;
   return /pdf/i.test(file.type);
@@ -242,6 +332,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "You can upload up to 10 PDF files." }, { status: 400 });
     }
 
+    if (markSchemeFiles.length === 0) {
+      return NextResponse.json(
+        { error: "At least one mark scheme PDF is required." },
+        { status: 400 }
+      );
+    }
+
     if (markSchemeFiles.length > 10) {
       return NextResponse.json(
         { error: "You can upload up to 10 mark scheme PDF files." },
@@ -267,6 +364,10 @@ export async function POST(request: Request) {
     const createdPaperIds: string[] = [];
     let totalExtractedQuestions = 0;
     const diagramWarnings: string[] = [];
+    const parserDebug: ParserDebug[] = [];
+    const debugParser =
+      String(formData.get("debugParser") ?? "").toLowerCase() === "true" ||
+      new URL(request.url).searchParams.get("debugParser") === "1";
 
     try {
       await ensureBucket("question-images", { public: true });
@@ -282,40 +383,95 @@ export async function POST(request: Request) {
 
     for (const [fileIndex, file] of files.entries()) {
       const bytes = await file.arrayBuffer();
-      const base64 = Buffer.from(bytes).toString("base64");
+      const pdfBytes = new Uint8Array(bytes);
       const markSchemeFile =
         markSchemeFiles.length === files.length
           ? markSchemeFiles[fileIndex]
           : markSchemeFiles[0] ?? null;
 
-      const promptParts: Parameters<typeof generateGeminiContent>[0] = [
-        { text: buildAnalysePrompt({ hasMarkScheme: Boolean(markSchemeFile) }) },
-        { text: "QUESTION PAPER PDF:" },
-        {
-          inlineData: {
-            mimeType: "application/pdf",
-            data: base64,
-          },
-        },
-      ];
-
-      if (markSchemeFile) {
-        const markSchemeBytes = await markSchemeFile.arrayBuffer();
-        promptParts.push(
-          { text: "OFFICIAL MARK SCHEME PDF:" },
-          {
-            inlineData: {
-              mimeType: "application/pdf",
-              data: Buffer.from(markSchemeBytes).toString("base64"),
-            },
-          }
-        );
+      let parsedPaper: ParsedQuestionPaper;
+      try {
+        parsedPaper = await parseQuestionPaperDeterministic(pdfBytes, { debug: debugParser });
+        diagramWarnings.push(...parsedPaper.warnings);
+        if (parsedPaper.debug) parserDebug.push(parsedPaper.debug);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "deterministic parser failed";
+        diagramWarnings.push(`Deterministic parser failed: ${message}`);
+        parsedPaper = { questions: [], warnings: [] };
       }
 
-      const { result } = await generateGeminiContent(promptParts);
+      const parserNeedsGeminiBackup =
+        parsedPaper.questions.length === 0 ||
+        parsedPaper.questions.some((question) =>
+          question.warnings.some((warning) => warning.startsWith("No question anchors found"))
+        );
+      const deterministicQuestions = parserNeedsGeminiBackup ? [] : parsedPaper.questions;
 
-      const responseText = result.response.text();
-      const extractedQuestions = parseQuestionsFromGemini(responseText);
+      let geminiQuestions: ExtractedQuestion[] = [];
+      try {
+        const promptParts: Parameters<typeof generateGeminiContent>[0] =
+          deterministicQuestions.length > 0
+            ? [
+                {
+                  text: buildEnrichmentPrompt(deterministicQuestions, {
+                    hasMarkScheme: Boolean(markSchemeFile),
+                  }),
+                },
+              ]
+            : [
+                { text: buildAnalysePrompt({ hasMarkScheme: Boolean(markSchemeFile) }) },
+                { text: "QUESTION PAPER PDF:" },
+                {
+                  inlineData: {
+                    mimeType: "application/pdf",
+                    data: Buffer.from(bytes).toString("base64"),
+                  },
+                },
+              ];
+
+        if (markSchemeFile) {
+          const markSchemeBytes = await markSchemeFile.arrayBuffer();
+          promptParts.push(
+            { text: "OFFICIAL MARK SCHEME PDF:" },
+            {
+              inlineData: {
+                mimeType: "application/pdf",
+                data: Buffer.from(markSchemeBytes).toString("base64"),
+              },
+            }
+          );
+        }
+
+        const { result } = await generateGeminiContent(promptParts);
+        geminiQuestions = parseQuestionsFromGemini(result.response.text());
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Gemini enrichment failed.";
+        diagramWarnings.push(`Gemini enrichment skipped: ${message}`);
+      }
+
+      let extractedQuestions = deterministicQuestions.map((question, index) =>
+        fromParsedQuestion(question, index, geminiQuestions)
+      );
+
+      if (extractedQuestions.length === 0 && geminiQuestions.length > 0) {
+        diagramWarnings.push(
+          "Deterministic parser produced no questions; using Gemini text backup without Gemini diagram geometry."
+        );
+        extractedQuestions = geminiQuestions.map((question) => ({
+          ...question,
+          hasDiagram: false,
+          diagramPage: null,
+          diagramBoundingBox: null,
+          parsed: null,
+        }));
+      }
+
+      if (extractedQuestions.length === 0 && parsedPaper.questions.length > 0) {
+        diagramWarnings.push("Gemini backup failed; using low-confidence deterministic parser output.");
+        extractedQuestions = parsedPaper.questions.map((question, index) =>
+          fromParsedQuestion(question, index, [])
+        );
+      }
 
       const subjectName = SYLLABUS_NAMES[syllabusCode] ?? `Syllabus ${syllabusCode}`;
 
@@ -339,8 +495,6 @@ export async function POST(request: Request) {
         );
       }
 
-      const pdfBytes = new Uint8Array(bytes);
-
       // Cache page renders so we only render each unique page once, regardless
       // of how many questions live on it.
       const pageBuffers = new Map<number, Buffer>();
@@ -357,31 +511,26 @@ export async function POST(request: Request) {
         }
       }
 
-      // Per-question diagram assets — keyed by question index so the same
-      // page can yield different crops for different questions.
       const questionAssets = new Map<number, { path: string; url: string }>();
 
       for (let i = 0; i < extractedQuestions.length; i += 1) {
         const question = extractedQuestions[i];
-        if (!question.hasDiagram || !question.diagramPage) continue;
+        const visual = question.parsed?.visuals[0] ?? null;
+        if (!visual) continue;
 
-        const pageBuffer = await getPageBuffer(question.diagramPage);
+        const pageBuffer = await getPageBuffer(visual.pageNumber);
         if (!pageBuffer) continue;
 
-        let buffer = pageBuffer;
-        let path = `${paperRow.id}/page-${question.diagramPage}.png`;
+        const safeNumber = (question.questionNumber || String(i + 1)).replace(/[^a-z0-9]+/gi, "_");
+        const path = `${paperRow.id}/q-${safeNumber}-visual-1.png`;
+        let buffer: Buffer;
 
-        if (question.diagramBoundingBox) {
-          try {
-            buffer = await cropPng(pageBuffer, question.diagramBoundingBox);
-            const safeNumber = (question.questionNumber || String(i)).replace(/[^a-z0-9]+/gi, "_");
-            path = `${paperRow.id}/q-${safeNumber}.png`;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : "crop failed";
-            diagramWarnings.push(`q${question.questionNumber}: ${message} (using full page)`);
-            buffer = pageBuffer;
-            path = `${paperRow.id}/page-${question.diagramPage}.png`;
-          }
+        try {
+          buffer = await cropPng(pageBuffer, visual.bbox);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "crop failed";
+          diagramWarnings.push(`q${question.questionNumber}: ${message}`);
+          continue;
         }
 
         const { error: uploadError } = await supabaseAdmin.storage
@@ -415,7 +564,7 @@ export async function POST(request: Request) {
             : 0,
           difficulty: normalizeDifficulty(question.difficulty ?? "medium"),
           marking_scheme: question.markingScheme?.trim() || null,
-          has_diagram: question.hasDiagram,
+          has_diagram: Boolean(diagramAsset),
           image_url: diagramAsset?.url ?? null,
           image_path: diagramAsset?.path ?? null,
         };
@@ -440,6 +589,7 @@ export async function POST(request: Request) {
       questionCount: totalExtractedQuestions,
       questionsExtracted: totalExtractedQuestions,
       diagramWarnings: diagramWarnings.length > 0 ? diagramWarnings : undefined,
+      parserDebug: debugParser ? parserDebug : undefined,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown server error";
