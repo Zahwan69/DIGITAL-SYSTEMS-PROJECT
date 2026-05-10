@@ -136,10 +136,7 @@ function ProfileMenu({
 
           <SignOutButton className="mt-3 w-full justify-center" onSignedOut={() => setOpen(false)} />
 
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-border bg-surface-alt px-3 py-2">
-            <span className="text-sm font-medium text-text">Theme</span>
-            <ThemeToggle />
-          </div>
+          <ThemeToggle variant="row" className="mt-3" />
         </div>
       ) : null}
 
@@ -299,7 +296,6 @@ export function AppSidebar({
             </div>
           ))}
         </nav>
-
       </aside>
     </>
   );
