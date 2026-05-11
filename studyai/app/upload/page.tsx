@@ -19,9 +19,8 @@ type AnalyseResponse = {
 };
 
 export default function UploadPage() {
-  const [syllabusCode, setSyllabusCode] = useState("");
-  const [year, setYear] = useState("");
-  const [level, setLevel] = useState("IGCSE");
+  const [subjectName, setSubjectName] = useState("");
+  const [paperDescription, setPaperDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [markSchemeFiles, setMarkSchemeFiles] = useState<File[]>([]);
   const [selectedFilenames, setSelectedFilenames] = useState<string[]>([]);
@@ -140,6 +139,11 @@ export default function UploadPage() {
       return;
     }
 
+    if (!subjectName.trim()) {
+      setError("Please enter a subject for this upload.");
+      return;
+    }
+
     if (markSchemeFiles.length === 0) {
       setError("Please select at least one mark scheme PDF before submitting.");
       return;
@@ -155,9 +159,10 @@ export default function UploadPage() {
     setLoading(true);
 
     const formData = new FormData();
-    formData.append("syllabusCode", syllabusCode);
-    if (year) formData.append("year", year);
-    formData.append("level", level);
+    formData.append("subjectName", subjectName.trim());
+    if (paperDescription.trim()) {
+      formData.append("paperDescription", paperDescription.trim());
+    }
     files.forEach((file) => {
       formData.append("files", file);
     });
@@ -212,7 +217,7 @@ export default function UploadPage() {
         <div className="w-full rounded-lg border border-border bg-surface p-5 sm:p-6">
           <h1 className="font-serif text-2xl font-semibold text-text">Upload QP and MS</h1>
           <p className="mt-1 text-sm text-text-muted">
-            Enter a syllabus code and upload the question paper with its mark scheme in the same form.
+            Add the subject, then upload the question paper with its mark scheme in the same form.
           </p>
 
           {error && (
@@ -244,47 +249,28 @@ export default function UploadPage() {
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div>
-              <label className="mb-1 block text-sm font-medium text-text" htmlFor="syllabusCode">
-                Syllabus Code
+              <label className="mb-1 block text-sm font-medium text-text" htmlFor="subjectName">
+                Subject
               </label>
               <Input
-                id="syllabusCode"
-                value={syllabusCode}
-                onChange={(event) => setSyllabusCode(event.target.value)}
-                placeholder="0580"
+                id="subjectName"
+                value={subjectName}
+                onChange={(event) => setSubjectName(event.target.value)}
+                placeholder="e.g. IGCSE Physics"
                 required
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-text" htmlFor="year">
-                Year <span className="text-text-muted">(optional)</span>
+              <label className="mb-1 block text-sm font-medium text-text" htmlFor="paperDescription">
+                Paper description <span className="text-text-muted">(optional)</span>
               </label>
               <Input
-                id="year"
-                type="number"
-                value={year}
-                onChange={(event) => setYear(event.target.value)}
-                placeholder="e.g. 2023"
-                min={2000}
-                max={2030}
+                id="paperDescription"
+                value={paperDescription}
+                onChange={(event) => setPaperDescription(event.target.value)}
+                placeholder="e.g. Paper 2 May/June 2023 Variant 21"
               />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-text" htmlFor="level">
-                Level <span className="text-text-muted">(optional)</span>
-              </label>
-              <select
-                id="level"
-                value={level}
-                onChange={(event) => setLevel(event.target.value)}
-                className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-sm text-text focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-accent/20"
-              >
-                <option value="IGCSE">IGCSE</option>
-                <option value="AS-Level">AS-Level</option>
-                <option value="A-Level">A-Level</option>
-              </select>
             </div>
 
             <div>

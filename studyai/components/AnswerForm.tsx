@@ -81,6 +81,15 @@ function extractInlineMultipleChoiceOptions(questionText: string): MultipleChoic
     : [];
 }
 
+function hasAllOptionLettersAsTokens(questionText: string) {
+  // A standalone letter token: not preceded or followed by another alphanumeric
+  // character. This catches "A 1, 2 and 3", "A.", "A)", "(A)", and "A" on its
+  // own line. Works whether the options are inline or on separate lines.
+  return ["A", "B", "C", "D"].every((label) =>
+    new RegExp(`(?:^|[^A-Za-z0-9])${label}(?:[^A-Za-z0-9]|$)`).test(questionText)
+  );
+}
+
 function extractMultipleChoiceOptions(
   questionText: string,
   marksAvailable: number
@@ -97,7 +106,7 @@ function extractMultipleChoiceOptions(
     const match =
       line.match(/^\(?([A-D])\)\s+(.+)$/i) ||
       line.match(/^([A-D])[.)]\s+(.+)$/i) ||
-      line.match(/^([A-D])\s{2,}(.+)$/i);
+      line.match(/^([A-D])\s+(.+)$/i);
 
     if (!match) continue;
     const label = match[1]!.toUpperCase();
@@ -112,12 +121,10 @@ function extractMultipleChoiceOptions(
   const inlineOptions = extractInlineMultipleChoiceOptions(questionText);
   if (inlineOptions.length >= 2) return inlineOptions;
 
-  const hasAllOptionLabels = ["A", "B", "C", "D"].every((label) =>
-    new RegExp(`(?:^|\\s|\\()${label}(?:[.)]|\\)|\\s)`, "i").test(questionText)
-  );
-  const looksLikeMcqPrompt = /\b(which|choose|select|answer|option)\b/i.test(questionText);
-
-  if (marksAvailable <= 2 && hasAllOptionLabels && looksLikeMcqPrompt) {
+  // Last-resort MCQ check: low-mark question with all four option letters
+  // present as standalone tokens. Cambridge MCQs are always 1 mark and always
+  // contain A, B, C, D somewhere — that combination is reliable enough.
+  if (marksAvailable <= 2 && hasAllOptionLettersAsTokens(questionText)) {
     return DEFAULT_MCQ_OPTIONS;
   }
 

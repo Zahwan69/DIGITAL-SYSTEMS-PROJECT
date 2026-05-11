@@ -64,6 +64,10 @@ type TextItemLike = {
   height?: number;
 };
 
+function copyPdfBytes(pdfBytes: Uint8Array) {
+  return new Uint8Array(pdfBytes);
+}
+
 function lineBox(items: PdfTextItem[]) {
   const xMin = Math.min(...items.map((item) => item.x));
   const yMin = Math.min(...items.map((item) => item.y));
@@ -141,7 +145,7 @@ function groupItemsIntoLines(items: PdfTextItem[], pageNumber: number): PdfLine[
 }
 
 export async function extractPdfLayout(pdfBytes: Uint8Array): Promise<PdfDocumentLayout> {
-  const loadingTask = pdfjs.getDocument({ data: pdfBytes, verbosity: 0 });
+  const loadingTask = pdfjs.getDocument({ data: copyPdfBytes(pdfBytes), verbosity: 0 });
   const pdf = await loadingTask.promise;
   const pages: PdfPageLayout[] = [];
 
@@ -205,4 +209,3 @@ export function unionBoxes(boxes: PdfBox[]): PdfBox | null {
     height: yMax - yMin,
   };
 }
-

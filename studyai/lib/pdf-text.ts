@@ -22,8 +22,12 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 
 type TextItemLike = { str?: string };
 
+function copyPdfBytes(pdfBytes: Uint8Array) {
+  return new Uint8Array(pdfBytes);
+}
+
 export async function extractPdfText(pdfBytes: Uint8Array): Promise<{ text: string; pageCount: number }> {
-  const loadingTask = pdfjs.getDocument({ data: pdfBytes, verbosity: 0 });
+  const loadingTask = pdfjs.getDocument({ data: copyPdfBytes(pdfBytes), verbosity: 0 });
   const pdf = await loadingTask.promise;
   const pageTexts: string[] = [];
 

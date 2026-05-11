@@ -1,6 +1,8 @@
 import "server-only";
 
 import { detectDiagramBoxForQuestionSpan, type NormalizedBoundingBox } from "@/lib/pdf-diagrams";
+
+const VISUAL_CONFIDENCE_FLOOR = 0.45;
 import { extractPdfLayout, type PdfDocumentLayout } from "@/lib/pdf-layout";
 import { renderPdfPageToPng } from "@/lib/pdf-render";
 import { segmentQuestions, type SegmentedQuestion } from "@/lib/question-segmentation";
@@ -124,21 +126,27 @@ export async function parseQuestionPaperDeterministic(
       }
 
       try {
-        const bbox = await detectDiagramBoxForQuestionSpan({
+        const detection = await detectDiagramBoxForQuestionSpan({
           pagePng: await getPageBuffer(span.pageNumber),
           page,
           span,
           pageLines: page.lines,
         });
 
-        if (bbox) {
-          visuals.push({
-            pageNumber: span.pageNumber,
-            bbox,
-            confidence: 0.72,
-            reason: "Detected non-text visual pixels inside the question span.",
-            warnings: [],
-          });
+        if (detection) {
+          if (detection.confidence >= VISUAL_CONFIDENCE_FLOOR) {
+            visuals.push({
+              pageNumber: span.pageNumber,
+              bbox: detection.bbox,
+              confidence: detection.confidence,
+              reason: detection.reason,
+              warnings: [],
+            });
+          } else {
+            questionWarnings.push(
+              `Skipped low-confidence diagram on page ${span.pageNumber} (confidence ${detection.confidence.toFixed(2)}, ${detection.pixelCount} px, ${detection.componentCount} components).`
+            );
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "visual detection failed";

@@ -1,11 +1,17 @@
 import "server-only";
 
-import { createRequire } from "node:module";
-
 import type { PdfBox, PdfLine, PdfPageLayout } from "@/lib/pdf-layout";
 import type { QuestionPageSpan } from "@/lib/question-segmentation";
 
 export type NormalizedBoundingBox = [number, number, number, number];
+
+export type DiagramDetection = {
+  bbox: NormalizedBoundingBox;
+  confidence: number;
+  pixelCount: number;
+  componentCount: number;
+  reason: string;
+};
 
 type CanvasFactory = (width: number, height: number) => {
   getContext: (contextId: "2d") => unknown;
@@ -30,22 +36,44 @@ type PixelBox = {
   pixelCount: number;
 };
 
-function canvasTools(): CanvasTools {
-  const require = createRequire(import.meta.url);
-  const napiPkg = ["@napi-rs", "canvas"].join("/");
-  const napi = require(napiPkg) as {
-    createCanvas?: CanvasFactory;
-    loadImage?: ImageLoader;
-  };
+type CanvasModuleShape = {
+  createCanvas?: CanvasFactory;
+  loadImage?: ImageLoader;
+  default?: { createCanvas?: CanvasFactory; loadImage?: ImageLoader };
+};
 
-  if (!napi.createCanvas || !napi.loadImage) {
-    throw new Error("@napi-rs/canvas image support is unavailable.");
+function pickCanvasTools(mod: CanvasModuleShape): CanvasTools | null {
+  const createCanvas = mod.createCanvas ?? mod.default?.createCanvas;
+  const loadImage = mod.loadImage ?? mod.default?.loadImage;
+  if (typeof createCanvas === "function" && typeof loadImage === "function") {
+    return { createCanvas, loadImage };
+  }
+  return null;
+}
+
+async function canvasTools(): Promise<CanvasTools> {
+  let napiError: unknown = null;
+  try {
+    const napi = (await import("@napi-rs/canvas")) as CanvasModuleShape;
+    const tools = pickCanvasTools(napi);
+    if (tools) return tools;
+  } catch (error) {
+    napiError = error;
   }
 
-  return {
-    createCanvas: napi.createCanvas,
-    loadImage: napi.loadImage,
-  };
+  try {
+    const canvas = (await import("canvas")) as CanvasModuleShape;
+    const tools = pickCanvasTools(canvas);
+    if (tools) return tools;
+  } catch (error) {
+    const napiMessage = napiError instanceof Error ? napiError.message : String(napiError ?? "unknown");
+    const canvasMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `No compatible canvas image backend could be loaded. @napi-rs/canvas: ${napiMessage}. canvas: ${canvasMessage}.`
+    );
+  }
+
+  throw new Error("No compatible canvas image backend found. Install @napi-rs/canvas or canvas.");
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -93,6 +121,20 @@ function componentLooksLikeDiagram(box: PixelBox) {
   if (width > 40 && height <= 4) return false;
   if (height > 40 && width <= 4) return false;
   return true;
+}
+
+function looksLikeAnswerRule(box: PixelBox, roi: PixelBox) {
+  const width = box.xMax - box.xMin;
+  const height = box.yMax - box.yMin;
+  if (height <= 0 || width <= 0) return false;
+  const aspect = width / height;
+  if (aspect < 12) return false;
+  const roiHeight = Math.max(1, roi.yMax - roi.yMin);
+  const centerY = (box.yMin + box.yMax) / 2;
+  const verticalPosition = (centerY - roi.yMin) / roiHeight;
+  // Answer rules are very thin, very wide, and live in the lower band of the
+  // question. Diagrams that share those traits are vanishingly rare.
+  return verticalPosition > 0.35 && height <= 6;
 }
 
 function findComponents(
@@ -192,8 +234,8 @@ export async function detectDiagramBoxForQuestionSpan({
   page: PdfPageLayout;
   span: QuestionPageSpan;
   pageLines: PdfLine[];
-}): Promise<NormalizedBoundingBox | null> {
-  const { createCanvas, loadImage } = canvasTools();
+}): Promise<DiagramDetection | null> {
+  const { createCanvas, loadImage } = await canvasTools();
   const image = await loadImage(pagePng);
   const imageWidth = image.width;
   const imageHeight = image.height;
@@ -211,19 +253,43 @@ export async function detectDiagramBoxForQuestionSpan({
     markRect(textMask, imageWidth, { ...rect, pixelCount: 0 });
   }
 
-  const roi = pdfBoxToPixels(span.box, page, imageWidth, imageHeight, 8);
-  const components = findComponents(data, textMask, imageWidth, imageHeight, { ...roi, pixelCount: 0 });
+  const roiBox = { ...pdfBoxToPixels(span.box, page, imageWidth, imageHeight, 8), pixelCount: 0 };
+  const components = findComponents(data, textMask, imageWidth, imageHeight, roiBox);
+  const roiArea = Math.max(1, (roiBox.xMax - roiBox.xMin) * (roiBox.yMax - roiBox.yMin));
+
   const meaningfulComponents = components.filter((component) => {
     const width = component.xMax - component.xMin;
     const height = component.yMax - component.yMin;
-    const roiArea = Math.max(1, (roi.xMax - roi.xMin) * (roi.yMax - roi.yMin));
     const componentArea = width * height;
     if (componentArea / roiArea > 0.75) return false;
+    if (looksLikeAnswerRule(component, roiBox)) return false;
     return true;
   });
 
   const union = unionPixelBoxes(meaningfulComponents);
   if (!union) return null;
-  return toNormalizedBox(union, imageWidth, imageHeight);
-}
 
+  // Confidence is derived from real evidence: how much non-text pixel mass
+  // is inside the span, how many distinct components were detected, and how
+  // much of the span the union covers. The thresholds are deliberately
+  // conservative — wrong crops are worse than missing diagrams.
+  const unionArea = Math.max(
+    1,
+    (union.xMax - union.xMin) * (union.yMax - union.yMin)
+  );
+  const massScore = Math.min(1, union.pixelCount / 1500);
+  const componentScore = Math.min(1, meaningfulComponents.length / 3);
+  const coverageScore = Math.min(1, Math.max(0, (unionArea / roiArea) * 8));
+  const confidence = Math.min(
+    0.95,
+    massScore * 0.55 + componentScore * 0.25 + coverageScore * 0.2
+  );
+
+  return {
+    bbox: toNormalizedBox(union, imageWidth, imageHeight),
+    confidence,
+    pixelCount: union.pixelCount,
+    componentCount: meaningfulComponents.length,
+    reason: `Detected ${meaningfulComponents.length} non-text component(s) with ${union.pixelCount} dark pixels inside the question span.`,
+  };
+}

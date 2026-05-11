@@ -8,6 +8,7 @@ type PaperRow = {
   subject_name: string;
   syllabus_code: string;
   year: number | null;
+  paper_number: string | null;
   level: string;
   question_count: number | null;
   created_at: string;
@@ -109,7 +110,7 @@ export async function GET(request: Request) {
       : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
     supabaseAdmin
       .from("past_papers")
-      .select("id, subject_name, syllabus_code, year, level, question_count, created_at")
+      .select("id, subject_name, syllabus_code, year, paper_number, level, question_count, created_at")
       .eq("uploaded_by", auth.userId)
       .order("created_at", { ascending: false }),
   ]);
@@ -145,7 +146,7 @@ export async function GET(request: Request) {
   const assignedPapersResult = assignedPaperIds.length
     ? await supabaseAdmin
         .from("past_papers")
-        .select("id, subject_name, syllabus_code, year, level, question_count, created_at")
+        .select("id, subject_name, syllabus_code, year, paper_number, level, question_count, created_at")
         .in("id", assignedPaperIds)
     : { data: [] as PaperRow[], error: null };
 

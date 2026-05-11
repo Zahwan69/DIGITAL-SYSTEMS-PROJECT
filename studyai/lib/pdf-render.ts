@@ -26,24 +26,8 @@ type CanvasFactory = (width: number, height: number) => {
   toBuffer: (mimeType?: string) => Buffer;
 };
 
-function resolveCanvasFactory(): CanvasFactory {
-  const require = createRequire(import.meta.url);
-  const canvasPkg = ["can", "vas"].join("");
-  const napiPkg = ["@napi-rs", "canvas"].join("/");
-  try {
-    const canvas = require(canvasPkg) as { createCanvas?: CanvasFactory };
-    if (typeof canvas.createCanvas === "function") {
-      return canvas.createCanvas;
-    }
-  } catch {
-    // fall through to @napi-rs/canvas
-  }
-
-  const napiCanvas = require(napiPkg) as { createCanvas?: CanvasFactory };
-  if (typeof napiCanvas.createCanvas === "function") {
-    return napiCanvas.createCanvas;
-  }
-  throw new Error("No compatible canvas backend found. Install canvas or @napi-rs/canvas.");
+function copyPdfBytes(pdfBytes: Uint8Array) {
+  return new Uint8Array(pdfBytes);
 }
 
 type ImageLoader = (data: Buffer) => Promise<{
@@ -51,8 +35,75 @@ type ImageLoader = (data: Buffer) => Promise<{
   height: number;
 }>;
 
+type CanvasModuleShape = {
+  createCanvas?: CanvasFactory;
+  loadImage?: ImageLoader;
+  default?: { createCanvas?: CanvasFactory; loadImage?: ImageLoader };
+};
+
+function pickFactory(mod: CanvasModuleShape): CanvasFactory | null {
+  const createCanvas = mod.createCanvas ?? mod.default?.createCanvas;
+  return typeof createCanvas === "function" ? createCanvas : null;
+}
+
+function pickImageTools(
+  mod: CanvasModuleShape
+): { createCanvas: CanvasFactory; loadImage: ImageLoader } | null {
+  const createCanvas = mod.createCanvas ?? mod.default?.createCanvas;
+  const loadImage = mod.loadImage ?? mod.default?.loadImage;
+  if (typeof createCanvas === "function" && typeof loadImage === "function") {
+    return { createCanvas, loadImage };
+  }
+  return null;
+}
+
+async function resolveCanvasFactory(): Promise<CanvasFactory> {
+  let napiError: unknown = null;
+  try {
+    const napi = (await import("@napi-rs/canvas")) as CanvasModuleShape;
+    const factory = pickFactory(napi);
+    if (factory) return factory;
+  } catch (error) {
+    napiError = error;
+  }
+
+  try {
+    const canvas = (await import("canvas")) as CanvasModuleShape;
+    const factory = pickFactory(canvas);
+    if (factory) return factory;
+  } catch (error) {
+    const napiMessage = napiError instanceof Error ? napiError.message : String(napiError ?? "unknown");
+    const canvasMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `No compatible canvas backend could be loaded. @napi-rs/canvas: ${napiMessage}. canvas: ${canvasMessage}.`
+    );
+  }
+
+  throw new Error("No compatible canvas backend found. Install @napi-rs/canvas or canvas.");
+}
+
+async function resolveCanvasImageTools() {
+  try {
+    const napi = (await import("@napi-rs/canvas")) as CanvasModuleShape;
+    const tools = pickImageTools(napi);
+    if (tools) return tools;
+  } catch {
+    // fall through to node-canvas
+  }
+
+  try {
+    const canvas = (await import("canvas")) as CanvasModuleShape;
+    const tools = pickImageTools(canvas);
+    if (tools) return tools;
+  } catch {
+    // no compatible image backend
+  }
+
+  return null;
+}
+
 /**
- * Crop a PNG buffer to a normalized 0-1000 bounding box using @napi-rs/canvas.
+ * Crop a PNG buffer to a normalized 0-1000 bounding box using the available canvas backend.
  * `bbox` is `[y_min, x_min, y_max, x_max]`. Returns a fresh PNG buffer.
  * Falls back to the original buffer if the canvas backend is missing image
  * support (older envs).
@@ -61,18 +112,10 @@ export async function cropPng(
   pngBuffer: Buffer,
   bbox: [number, number, number, number]
 ): Promise<Buffer> {
-  const require = createRequire(import.meta.url);
-  const napiPkg = ["@napi-rs", "canvas"].join("/");
-  const napi = require(napiPkg) as {
-    createCanvas?: CanvasFactory;
-    loadImage?: ImageLoader;
-    Image?: new () => { src: Buffer; width: number; height: number };
-  };
-  const createCanvas = napi.createCanvas;
-  const loadImage = napi.loadImage;
-  if (!createCanvas || !loadImage) {
-    return pngBuffer;
-  }
+  const tools = await resolveCanvasImageTools();
+  if (!tools) return pngBuffer;
+
+  const { createCanvas, loadImage } = tools;
 
   const image = (await loadImage(pngBuffer)) as { width: number; height: number };
   const w = image.width;
@@ -117,14 +160,14 @@ export async function renderPdfPageToPng(
   scale = 2
 ): Promise<Buffer> {
   const loadingTask = pdfjs.getDocument({
-    data: pdfBytes,
+    data: copyPdfBytes(pdfBytes),
     verbosity: 0,
   });
   const pdf = await loadingTask.promise;
   const page = await pdf.getPage(pageNumber);
 
   const viewport = page.getViewport({ scale });
-  const createCanvas = resolveCanvasFactory();
+  const createCanvas = await resolveCanvasFactory();
   const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
   const context = canvas.getContext("2d");
 

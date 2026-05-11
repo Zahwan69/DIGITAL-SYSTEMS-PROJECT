@@ -16,6 +16,7 @@ type Paper = {
   subject_name: string;
   syllabus_code: string;
   year: number | null;
+  paper_number: string | null;
   level: string;
   question_count: number | null;
   created_at: string;
@@ -68,7 +69,13 @@ function scoreLabel(summary: AttemptSummary) {
 }
 
 function paperSubtitle(paper: Paper) {
-  return `${paper.syllabus_code}${paper.year ? ` · ${paper.year}` : ""} · ${paper.level}`;
+  const details = [
+    paper.paper_number,
+    paper.syllabus_code !== "manual" ? paper.syllabus_code : null,
+    paper.year ? String(paper.year) : null,
+    paper.level,
+  ].filter(Boolean);
+  return details.join(" - ");
 }
 
 function AttemptDetails({ summary }: { summary: AttemptSummary }) {

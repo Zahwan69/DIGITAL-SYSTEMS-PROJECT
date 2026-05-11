@@ -27,13 +27,26 @@ const TOP_LEVEL_ANCHOR =
   /^\s*(?:question\s*)?(\d{1,2})(?:\s*[.)])?(?=\s|$|\([a-z]\)|[a-z]\))/i;
 
 const MARK_PATTERNS = [
-  /\[(\d{1,2})\]\s*$/,
+  /\[\s*(\d{1,2})(?:\s*marks?)?\s*\]\s*$/i,
   /\((\d{1,2})\s*marks?\)\s*$/i,
   /(?:^|\s)(\d{1,2})\s*marks?\s*$/i,
 ];
 
 function normalizedText(text: string) {
   return text.replace(/\s+/g, " ").trim();
+}
+
+function stripTrailingMarkAnnotation(text: string) {
+  return text
+    .replace(/\[\s*\d{1,2}(?:\s*marks?)?\s*\]\s*$/i, "")
+    .replace(/\(\s*\d{1,2}\s*marks?\s*\)\s*$/i, "")
+    .trim();
+}
+
+function isAnswerRuleLine(text: string) {
+  const withoutMarks = stripTrailingMarkAnnotation(normalizedText(text));
+  const compact = withoutMarks.replace(/\s+/g, "");
+  return compact.length >= 8 && /^[_\-.]+$/.test(compact);
 }
 
 function isLikelyPageFurniture(line: PdfLine, pageHeight: number) {
@@ -103,6 +116,22 @@ function isQuestionAnchor(line: PdfLine, previousQuestionNumber: number | null):
     questionNumber: String(parsed),
     confidence: Math.min(1, confidence),
   };
+}
+
+function looksLikeMultipleChoice(lines: PdfLine[]) {
+  const text = lines.map((line) => line.text).join(" ");
+  // Cambridge MCQ rows take a few shapes:
+  //   "A …  B …  C …  D …" on one line, or
+  //   per-letter lines starting with a single capital A/B/C/D.
+  const inlineOptions = /(^|\s)A\b[\s\S]{1,200}\bB\b[\s\S]{1,200}\bC\b[\s\S]{1,200}\bD\b/i.test(text);
+  if (inlineOptions) return true;
+
+  const optionLetters = new Set<string>();
+  for (const line of lines) {
+    const match = line.text.trim().match(/^([A-D])\b/);
+    if (match?.[1]) optionLetters.add(match[1].toUpperCase());
+  }
+  return optionLetters.size >= 3 && optionLetters.has("A") && optionLetters.has("B");
 }
 
 function extractMarks(lines: PdfLine[]) {
@@ -218,7 +247,8 @@ export function segmentQuestions(layout: PdfDocumentLayout): SegmentedQuestion[]
 
   if (anchors.length === 0) {
     const text = lines.map((line) => line.text).join("\n").trim();
-    const marksAvailable = extractMarks(lines);
+    let marksAvailable = extractMarks(lines);
+    if (marksAvailable <= 0 && looksLikeMultipleChoice(lines)) marksAvailable = 1;
     return text
       ? [
           {
@@ -248,12 +278,17 @@ export function segmentQuestions(layout: PdfDocumentLayout): SegmentedQuestion[]
       .map((line, lineIndex) =>
         lineIndex === 0 ? stripLeadingQuestionNumber(line.text, anchor.questionNumber) : line.text
       )
+      .map((text) => (isAnswerRuleLine(text) ? "" : stripTrailingMarkAnnotation(text)))
       .map(normalizedText)
       .filter(Boolean)
       .join("\n")
       .trim();
 
-    const marksAvailable = extractMarks(questionLines);
+    let marksAvailable = extractMarks(questionLines);
+    const isMultipleChoice = looksLikeMultipleChoice(questionLines);
+    if (marksAvailable <= 0 && isMultipleChoice) {
+      marksAvailable = 1;
+    }
     const warnings = [...(anchor.confidence < 0.7 ? ["Low-confidence question anchor."] : [])];
     if (marksAvailable <= 0) warnings.push("Marks could not be confidently extracted.");
     if (new Set(questionLines.map((line) => line.pageNumber)).size > 1) {

@@ -2,9 +2,10 @@
 -- StudyAI — full schema migration (one-paste, idempotent)
 -- =============================================================================
 -- Paste the entire file into Supabase SQL Editor and Run. Safe to re-run.
--- After this, create two Storage buckets manually in the Supabase dashboard:
+-- After this, create three Storage buckets manually in the Supabase dashboard:
 --   - question-images   (public)
 --   - answer-images     (private)
+--   - question-papers   (private)   -- original uploaded question paper PDFs
 -- The storage policies for answer-images are at the bottom of this file.
 -- =============================================================================
 
@@ -142,7 +143,9 @@ create policy "own achievements" on public.achievements for all using (auth.uid(
 alter table public.questions
   add column if not exists image_url text,
   add column if not exists image_path text,
-  add column if not exists has_diagram boolean not null default false;
+  add column if not exists has_diagram boolean not null default false,
+  add column if not exists page_start integer,
+  add column if not exists page_end integer;
 
 create index if not exists questions_has_diagram_idx
   on public.questions(has_diagram) where has_diagram = true;
@@ -429,8 +432,12 @@ create index if not exists teacher_chats_mode_idx
 -- Buckets to create in Supabase Storage (Dashboard → Storage → New bucket):
 --   - question-images   (public: TRUE — anyone reads, only service role writes)
 --   - answer-images     (public: FALSE — students read/write own folder)
+--   - question-papers   (public: FALSE — original QP PDFs; service role writes,
+--                        readers fetch via 1-hour signed URL minted by the API)
 --
 -- The policies below scope answer-images writes to '<uid>/<filename>' paths.
+-- question-papers reads/writes go exclusively through the service-role key on
+-- the API, so no explicit RLS policy is required.
 -- Skip this section if buckets don't exist yet — re-run after creating them.
 
 drop policy if exists "answer_images_owner_select" on storage.objects;

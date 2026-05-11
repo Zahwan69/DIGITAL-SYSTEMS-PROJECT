@@ -308,7 +308,9 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
+    const manualSubjectName = String(formData.get("subjectName") ?? "").trim();
     const syllabusCode = String(formData.get("syllabusCode") ?? "").trim();
+    const paperDescription = String(formData.get("paperDescription") ?? "").trim() || null;
     const yearRaw = formData.get("year");
     const year = yearRaw ? parseInt(String(yearRaw), 10) || null : null;
     const level = String(formData.get("level") ?? "IGCSE").trim() || "IGCSE";
@@ -320,8 +322,8 @@ export async function POST(request: Request) {
       (value): value is File => value instanceof File
     );
 
-    if (!syllabusCode) {
-      return NextResponse.json({ error: "Syllabus code is required." }, { status: 400 });
+    if (!manualSubjectName && !syllabusCode) {
+      return NextResponse.json({ error: "Subject is required." }, { status: 400 });
     }
 
     if (files.length === 0) {
@@ -381,6 +383,18 @@ export async function POST(request: Request) {
       );
     }
 
+    try {
+      await ensureBucket("question-papers", { public: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown bucket error";
+      return NextResponse.json(
+        {
+          error: `Cannot prepare original-paper storage: ${message}. Create a private bucket named "question-papers" in Supabase Storage and try again.`,
+        },
+        { status: 500 }
+      );
+    }
+
     for (const [fileIndex, file] of files.entries()) {
       const bytes = await file.arrayBuffer();
       const pdfBytes = new Uint8Array(bytes);
@@ -400,62 +414,79 @@ export async function POST(request: Request) {
         parsedPaper = { questions: [], warnings: [] };
       }
 
-      const parserNeedsGeminiBackup =
+      const geminiStructuralFallbackEnabled =
+        process.env.ENABLE_GEMINI_STRUCTURAL_FALLBACK === "true";
+      const parserHasNoAnchors =
         parsedPaper.questions.length === 0 ||
         parsedPaper.questions.some((question) =>
           question.warnings.some((warning) => warning.startsWith("No question anchors found"))
         );
-      const deterministicQuestions = parserNeedsGeminiBackup ? [] : parsedPaper.questions;
+      const useGeminiForStructure = parserHasNoAnchors && geminiStructuralFallbackEnabled;
+      const deterministicQuestions = useGeminiForStructure ? [] : parsedPaper.questions;
+
+      if (parserHasNoAnchors && !geminiStructuralFallbackEnabled) {
+        diagramWarnings.push(
+          "Deterministic parser found no top-level questions. Set ENABLE_GEMINI_STRUCTURAL_FALLBACK=true to allow a Gemini text backup, or upload a clearer PDF."
+        );
+      }
 
       let geminiQuestions: ExtractedQuestion[] = [];
-      try {
-        const promptParts: Parameters<typeof generateGeminiContent>[0] =
-          deterministicQuestions.length > 0
-            ? [
-                {
-                  text: buildEnrichmentPrompt(deterministicQuestions, {
-                    hasMarkScheme: Boolean(markSchemeFile),
-                  }),
-                },
-              ]
-            : [
-                { text: buildAnalysePrompt({ hasMarkScheme: Boolean(markSchemeFile) }) },
-                { text: "QUESTION PAPER PDF:" },
-                {
-                  inlineData: {
-                    mimeType: "application/pdf",
-                    data: Buffer.from(bytes).toString("base64"),
+      const shouldCallGemini = deterministicQuestions.length > 0 || useGeminiForStructure;
+
+      if (shouldCallGemini) {
+        try {
+          const promptParts: Parameters<typeof generateGeminiContent>[0] =
+            deterministicQuestions.length > 0
+              ? [
+                  {
+                    text: buildEnrichmentPrompt(deterministicQuestions, {
+                      hasMarkScheme: Boolean(markSchemeFile),
+                    }),
                   },
+                ]
+              : [
+                  { text: buildAnalysePrompt({ hasMarkScheme: Boolean(markSchemeFile) }) },
+                  { text: "QUESTION PAPER PDF:" },
+                  {
+                    inlineData: {
+                      mimeType: "application/pdf",
+                      data: Buffer.from(bytes).toString("base64"),
+                    },
+                  },
+                ];
+
+          if (markSchemeFile) {
+            const markSchemeBytes = await markSchemeFile.arrayBuffer();
+            promptParts.push(
+              { text: "OFFICIAL MARK SCHEME PDF:" },
+              {
+                inlineData: {
+                  mimeType: "application/pdf",
+                  data: Buffer.from(markSchemeBytes).toString("base64"),
                 },
-              ];
+              }
+            );
+          }
 
-        if (markSchemeFile) {
-          const markSchemeBytes = await markSchemeFile.arrayBuffer();
-          promptParts.push(
-            { text: "OFFICIAL MARK SCHEME PDF:" },
-            {
-              inlineData: {
-                mimeType: "application/pdf",
-                data: Buffer.from(markSchemeBytes).toString("base64"),
-              },
-            }
-          );
+          const { result } = await generateGeminiContent(promptParts);
+          geminiQuestions = parseQuestionsFromGemini(result.response.text());
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Gemini enrichment failed.";
+          diagramWarnings.push(`Gemini enrichment skipped: ${message}`);
         }
-
-        const { result } = await generateGeminiContent(promptParts);
-        geminiQuestions = parseQuestionsFromGemini(result.response.text());
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Gemini enrichment failed.";
-        diagramWarnings.push(`Gemini enrichment skipped: ${message}`);
       }
 
       let extractedQuestions = deterministicQuestions.map((question, index) =>
         fromParsedQuestion(question, index, geminiQuestions)
       );
 
-      if (extractedQuestions.length === 0 && geminiQuestions.length > 0) {
+      if (
+        useGeminiForStructure &&
+        extractedQuestions.length === 0 &&
+        geminiQuestions.length > 0
+      ) {
         diagramWarnings.push(
-          "Deterministic parser produced no questions; using Gemini text backup without Gemini diagram geometry."
+          "Deterministic parser produced no questions; using Gemini text backup. Gemini diagram fields are discarded — image_url, has_diagram, and crop coordinates remain parser-controlled."
         );
         extractedQuestions = geminiQuestions.map((question) => ({
           ...question,
@@ -473,15 +504,37 @@ export async function POST(request: Request) {
         );
       }
 
-      const subjectName = SYLLABUS_NAMES[syllabusCode] ?? `Syllabus ${syllabusCode}`;
+      if (process.env.NODE_ENV !== "production" || debugParser) {
+        for (let logIndex = 0; logIndex < extractedQuestions.length; logIndex += 1) {
+          const question = extractedQuestions[logIndex];
+          const parsed = question.parsed;
+          const pages = parsed?.segmented.pageSpans.map((span) => span.pageNumber) ?? [];
+          const pageRange = pages.length
+            ? `p${Math.min(...pages)}-p${Math.max(...pages)}`
+            : "p?";
+          const visual = parsed?.visuals[0] ?? null;
+          console.info(
+            `[analyse] q${question.questionNumber} idx=${logIndex} ${pageRange} textLen=${question.questionText.length} visual=${
+              visual
+                ? `bbox=[${visual.bbox.join(",")}] confidence=${visual.confidence.toFixed(2)}`
+                : "none"
+            }${parsed?.warnings.length ? ` warnings=${parsed.warnings.join(" | ")}` : ""}`
+          );
+        }
+      }
+
+      const subjectName =
+        manualSubjectName || SYLLABUS_NAMES[syllabusCode] || `Syllabus ${syllabusCode}`;
+      const storedSyllabusCode = syllabusCode || "manual";
 
       const { data: paperRow, error: paperError } = await supabaseAdmin
         .from("past_papers")
         .insert({
           uploaded_by: auth.userId,
           subject_name: subjectName,
-          syllabus_code: syllabusCode,
+          syllabus_code: storedSyllabusCode,
           year,
+          paper_number: paperDescription,
           level,
           question_count: extractedQuestions.length,
         })
@@ -493,6 +546,30 @@ export async function POST(request: Request) {
           { error: paperError?.message ?? "Failed to save past paper." },
           { status: 500 }
         );
+      }
+
+      const originalPdfPath = `${paperRow.id}.pdf`;
+      const { error: pdfUploadError } = await supabaseAdmin.storage
+        .from("question-papers")
+        .upload(originalPdfPath, Buffer.from(bytes), {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+
+      if (pdfUploadError) {
+        diagramWarnings.push(
+          `Original PDF could not be archived: ${pdfUploadError.message}. The viewer fallback will be unavailable for this paper.`
+        );
+      } else {
+        const { error: fileUrlUpdateError } = await supabaseAdmin
+          .from("past_papers")
+          .update({ file_url: originalPdfPath })
+          .eq("id", paperRow.id);
+        if (fileUrlUpdateError) {
+          diagramWarnings.push(
+            `Original PDF uploaded but file_url could not be saved: ${fileUrlUpdateError.message}.`
+          );
+        }
       }
 
       // Cache page renders so we only render each unique page once, regardless
@@ -522,7 +599,7 @@ export async function POST(request: Request) {
         if (!pageBuffer) continue;
 
         const safeNumber = (question.questionNumber || String(i + 1)).replace(/[^a-z0-9]+/gi, "_");
-        const path = `${paperRow.id}/q-${safeNumber}-visual-1.png`;
+        const path = `${paperRow.id}/q-${i + 1}-${safeNumber}.png`;
         let buffer: Buffer;
 
         try {
@@ -553,6 +630,9 @@ export async function POST(request: Request) {
 
       const questionRows = extractedQuestions.map((question, index) => {
         const diagramAsset = questionAssets.get(index) ?? null;
+        const pages = question.parsed?.segmented.pageSpans.map((span) => span.pageNumber) ?? [];
+        const pageStart = pages.length ? Math.min(...pages) : null;
+        const pageEnd = pages.length ? Math.max(...pages) : null;
 
         return {
           paper_id: paperRow.id,
@@ -567,6 +647,8 @@ export async function POST(request: Request) {
           has_diagram: Boolean(diagramAsset),
           image_url: diagramAsset?.url ?? null,
           image_path: diagramAsset?.path ?? null,
+          page_start: pageStart,
+          page_end: pageEnd,
         };
       });
 

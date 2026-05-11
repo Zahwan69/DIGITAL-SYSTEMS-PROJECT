@@ -21,7 +21,7 @@ export function SignOutButton({ variant = "default", className, onSignedOut }: S
     setLoading(true);
     await supabase.auth.signOut();
     onSignedOut?.();
-    router.push("/auth/login");
+    router.push("/");
     router.refresh();
   }
 

@@ -9,9 +9,11 @@ type PaperRow = {
   subject_name: string;
   syllabus_code: string;
   year: number | null;
+  paper_number: string | null;
   level: string;
   question_count: number;
   created_at: string;
+  file_url: string | null;
 };
 
 type QuestionRow = {
@@ -23,6 +25,8 @@ type QuestionRow = {
   difficulty: "easy" | "medium" | "hard";
   image_url: string | null;
   has_diagram: boolean;
+  page_start: number | null;
+  page_end: number | null;
 };
 
 type AttemptRow = {
@@ -87,7 +91,9 @@ export async function GET(
 
   const { data: paper, error: paperError } = await supabaseAdmin
     .from("past_papers")
-    .select("id, uploaded_by, subject_name, syllabus_code, year, level, question_count, created_at")
+    .select(
+      "id, uploaded_by, subject_name, syllabus_code, year, paper_number, level, question_count, created_at, file_url"
+    )
     .eq("id", paperId)
     .maybeSingle<PaperRow>();
 
@@ -122,20 +128,36 @@ export async function GET(
     return NextResponse.json({ error: "Paper not found." }, { status: 404 });
   }
 
+  let originalPdfUrl: string | null = null;
+  if (paper.file_url) {
+    const { data: signed, error: signedError } = await supabaseAdmin.storage
+      .from("question-papers")
+      .createSignedUrl(paper.file_url, 60 * 60);
+    if (signedError) {
+      console.warn(
+        `[papers] could not sign question-paper URL for ${paperId}: ${signedError.message}`
+      );
+    } else {
+      originalPdfUrl = signed?.signedUrl ?? null;
+    }
+  }
+
   const safePaper = {
     id: paper.id,
     subject_name: paper.subject_name,
     syllabus_code: paper.syllabus_code,
     year: paper.year,
+    paper_number: paper.paper_number,
     level: paper.level,
     question_count: paper.question_count,
     created_at: paper.created_at,
+    original_pdf_url: originalPdfUrl,
   };
 
   const { data: questionData, error: questionError } = await supabaseAdmin
     .from("questions")
     .select(
-      "id, question_number, question_text, topic, marks_available, difficulty, image_url, has_diagram"
+      "id, question_number, question_text, topic, marks_available, difficulty, image_url, has_diagram, page_start, page_end"
     )
     .eq("paper_id", paperId)
     .order("question_number", { ascending: true });
