@@ -9,17 +9,22 @@ type PaperRow = {
   file_url: string | null;
 };
 
-async function canAccessAssignedPaper(userId: string, paperId: string) {
-  const { data: memberships, error: memberError } = await supabaseAdmin
-    .from("class_members")
-    .select("class_id")
-    .eq("student_id", userId);
+async function canAccessThroughAssignment(userId: string, paperId: string) {
+  const [{ data: memberships, error: memberError }, { data: taughtClasses, error: taughtError }] =
+    await Promise.all([
+      supabaseAdmin.from("class_members").select("class_id").eq("student_id", userId),
+      supabaseAdmin.from("classes").select("id").eq("teacher_id", userId),
+    ]);
 
-  if (memberError) {
-    throw new Error(memberError.message);
-  }
+  if (memberError) throw new Error(memberError.message);
+  if (taughtError) throw new Error(taughtError.message);
 
-  const classIds = (memberships ?? []).map((membership) => membership.class_id);
+  const classIds = Array.from(
+    new Set([
+      ...(memberships ?? []).map((m) => m.class_id),
+      ...(taughtClasses ?? []).map((c) => c.id),
+    ])
+  );
   if (classIds.length === 0) return false;
 
   const { data: assignments, error: assignmentError } = await supabaseAdmin
@@ -73,7 +78,7 @@ export async function GET(
 
   if (!isUploader && !isAdmin) {
     try {
-      hasAssignmentAccess = await canAccessAssignedPaper(auth.userId, paperId);
+      hasAssignmentAccess = await canAccessThroughAssignment(auth.userId, paperId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "access check failed";
       return NextResponse.json({ error: message }, { status: 500 });
