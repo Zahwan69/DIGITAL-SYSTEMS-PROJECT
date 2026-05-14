@@ -51,12 +51,13 @@ export async function GET(request: Request) {
 
 type CreateChatBody = {
   classId?: string;
-  mode?: "class-analytics" | "paper-review" | "write-questions";
+  // mode is accepted for backward compatibility but ignored — the unified
+  // assistant infers intent from each message. All new chats are inserted
+  // with mode='class-analytics' so the DB CHECK constraint is satisfied.
+  mode?: string;
   paperId?: string | null;
   subjectId?: string | null;
 };
-
-const VALID_MODES = new Set(["class-analytics", "paper-review", "write-questions"]);
 
 export async function POST(request: Request) {
   const gate = await assertTeacher(request);
@@ -66,17 +67,8 @@ export async function POST(request: Request) {
   const classId = body?.classId?.trim();
   if (!classId) return NextResponse.json({ error: "classId is required." }, { status: 400 });
 
-  const mode = body?.mode ?? "class-analytics";
-  if (!VALID_MODES.has(mode)) {
-    return NextResponse.json({ error: "Unknown chat mode." }, { status: 400 });
-  }
-
   const paperId = body?.paperId?.trim() || null;
   const subjectId = body?.subjectId?.trim() || null;
-
-  if (mode === "paper-review" && !paperId) {
-    return NextResponse.json({ error: "paperId is required for paper-review mode." }, { status: 400 });
-  }
 
   const { data: classRow } = await supabaseAdmin
     .from("classes")
@@ -96,16 +88,18 @@ export async function POST(request: Request) {
     if (!paper) return NextResponse.json({ error: "Paper not found." }, { status: 404 });
   }
 
-  const resolvedSubjectId = subjectId ?? (mode === "write-questions" ? classRow.subject_id ?? null : null);
+  // If the teacher didn't pick a subject but the class has one set, default
+  // to it so question generation can use the syllabus code automatically.
+  const resolvedSubjectId = subjectId ?? classRow.subject_id ?? null;
 
   const { data, error } = await supabaseAdmin
     .from("teacher_chats")
     .insert({
       teacher_id: gate.userId,
       class_id: classId,
-      mode,
-      paper_id: mode === "paper-review" ? paperId : null,
-      subject_id: mode === "write-questions" ? resolvedSubjectId : null,
+      mode: "class-analytics",
+      paper_id: paperId,
+      subject_id: resolvedSubjectId,
     })
     .select("id")
     .single();

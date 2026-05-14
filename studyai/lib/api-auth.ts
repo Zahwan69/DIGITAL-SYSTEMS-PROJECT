@@ -42,20 +42,47 @@ export async function authenticateRequest(
   return { ok: true, userId: user.id, token };
 }
 
-export async function requireAdmin(userId: string): Promise<boolean> {
+// Role buckets. Legacy 'admin' is intentionally kept as a synonym of
+// 'superadmin' until the Phase 5 data migration runs.
+export const SUPERADMIN_ROLES = new Set<string>(["superadmin", "admin"]);
+export const ADMINISTRATION_ROLES = new Set<string>([
+  "administration",
+  ...SUPERADMIN_ROLES,
+]);
+
+async function loadRole(userId: string): Promise<string | null> {
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("role")
     .eq("id", userId)
     .single();
-  return profile?.role === "admin";
+  return profile?.role ?? null;
+}
+
+export async function requireSuperadmin(userId: string): Promise<boolean> {
+  const role = await loadRole(userId);
+  return role ? SUPERADMIN_ROLES.has(role) : false;
+}
+
+export async function requireAdministration(userId: string): Promise<boolean> {
+  const role = await loadRole(userId);
+  return role ? ADMINISTRATION_ROLES.has(role) : false;
 }
 
 export async function requireTeacher(userId: string): Promise<boolean> {
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-  return profile?.role === "teacher";
+  const role = await loadRole(userId);
+  return role === "teacher";
+}
+
+export async function requireTutor(userId: string): Promise<boolean> {
+  const role = await loadRole(userId);
+  return role === "tutor";
+}
+
+/**
+ * Deprecated alias of {@link requireSuperadmin}. Kept so existing callers
+ * keep compiling and legacy 'admin' profiles still pass.
+ */
+export async function requireAdmin(userId: string): Promise<boolean> {
+  return requireSuperadmin(userId);
 }

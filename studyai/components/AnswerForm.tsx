@@ -25,21 +25,28 @@ export type MarkResult = {
   answerImagePath?: string | null;
   answerImageUrl?: string | null;
   needsTeacherReview?: boolean;
-};
-
-type Props = {
-  questionId: string;
-  questionText: string;
-  marksAvailable: number;
-  onSubmitted: (result: MarkResult) => void;
-  revealed: boolean;
-  existingResult?: MarkResult | null;
+  attemptsUsed?: number;
+  attemptsRemaining?: number;
 };
 
 type MultipleChoiceOption = {
   label: string;
   text?: string;
 };
+
+type Props = {
+  questionId: string;
+  questionText: string;
+  marksAvailable: number;
+  attemptsUsed: number;
+  attemptsRemaining: number;
+  onSubmitted: (result: MarkResult) => void;
+  onDraftChange?: (questionId: string, draft: string) => void;
+  revealed: boolean;
+  existingResult?: MarkResult | null;
+};
+
+const MAX_ATTEMPTS = 3;
 
 function scoreColour(pct: number): string {
   if (pct >= 50) return "text-text";
@@ -82,9 +89,6 @@ function extractInlineMultipleChoiceOptions(questionText: string): MultipleChoic
 }
 
 function hasAllOptionLettersAsTokens(questionText: string) {
-  // A standalone letter token: not preceded or followed by another alphanumeric
-  // character. This catches "A 1, 2 and 3", "A.", "A)", "(A)", and "A" on its
-  // own line. Works whether the options are inline or on separate lines.
   return ["A", "B", "C", "D"].every((label) =>
     new RegExp(`(?:^|[^A-Za-z0-9])${label}(?:[^A-Za-z0-9]|$)`).test(questionText)
   );
@@ -121,9 +125,6 @@ function extractMultipleChoiceOptions(
   const inlineOptions = extractInlineMultipleChoiceOptions(questionText);
   if (inlineOptions.length >= 2) return inlineOptions;
 
-  // Last-resort MCQ check: low-mark question with all four option letters
-  // present as standalone tokens. Cambridge MCQs are always 1 mark and always
-  // contain A, B, C, D somewhere — that combination is reliable enough.
   if (marksAvailable <= 2 && hasAllOptionLettersAsTokens(questionText)) {
     return DEFAULT_MCQ_OPTIONS;
   }
@@ -135,7 +136,10 @@ export function AnswerForm({
   questionId,
   questionText,
   marksAvailable,
+  attemptsUsed,
+  attemptsRemaining,
   onSubmitted,
+  onDraftChange,
   revealed,
   existingResult = null,
 }: Props) {
@@ -144,19 +148,17 @@ export function AnswerForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [hints, setHints] = useState<string[]>([]);
-  const [hintLoading, setHintLoading] = useState(false);
-  const [hintError, setHintError] = useState<string | null>(null);
   const [selectedAttachment, setSelectedAttachment] = useState<File | null>(null);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [resultImageBroken, setResultImageBroken] = useState(false);
-  const MAX_HINTS = 3;
+
   const multipleChoiceOptions = useMemo(
     () => extractMultipleChoiceOptions(questionText, marksAvailable),
     [marksAvailable, questionText]
   );
   const isMultipleChoice = multipleChoiceOptions.length > 0;
+
   const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
   const allowedAttachmentTypes = new Set([
     "image/jpeg",
@@ -165,11 +167,17 @@ export function AnswerForm({
     "application/pdf",
   ]);
 
+  const outOfAttempts = attemptsRemaining <= 0;
+
   useEffect(() => {
     return () => {
       if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
     };
   }, [attachmentPreviewUrl]);
+
+  useEffect(() => {
+    if (onDraftChange) onDraftChange(questionId, answer);
+  }, [answer, onDraftChange, questionId]);
 
   function clearSelectedAttachment() {
     if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
@@ -199,47 +207,12 @@ export function AnswerForm({
     setAttachmentPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
   }
 
-  async function handleGetHint() {
-    setHintLoading(true);
-    setHintError(null);
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      setHintError("Session expired. Please sign in again.");
-      setHintLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/hint", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ questionId }),
-      });
-
-      const data = (await response.json().catch(() => ({}))) as { hint?: string; error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Could not generate a hint right now.");
-      }
-      if (data.hint) {
-        setHints((prev) => [...prev, data.hint!]);
-      } else {
-        throw new Error("Could not generate a hint right now.");
-      }
-    } catch (error) {
-      setHintError(error instanceof Error ? error.message : "Could not generate a hint right now.");
-    } finally {
-      setHintLoading(false);
-    }
-  }
-
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (outOfAttempts) {
+      setError("You have used all 3 attempts for this question.");
+      return;
+    }
     if (!answer.trim() && !selectedAttachment) {
       setError("Please provide text or attach a file.");
       return;
@@ -302,7 +275,11 @@ export function AnswerForm({
         }),
       });
 
-      const data = (await response.json().catch(() => ({}))) as MarkResult & { error?: string };
+      const data = (await response.json().catch(() => ({}))) as MarkResult & {
+        error?: string;
+        attemptsUsed?: number;
+        attemptsRemaining?: number;
+      };
       if (!response.ok) {
         setError(data.error ?? "Marking failed. Please try again.");
         setLoading(false);
@@ -433,44 +410,23 @@ export function AnswerForm({
   return (
     <form onSubmit={handleSubmit} className="mt-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-alt px-3 py-2">
-        <p className="text-xs text-text-muted">Need a nudge? Ask Gemini for a short hint.</p>
-        {!submitted && (
-          <button
-            type="button"
-            onClick={handleGetHint}
-            disabled={hintLoading || hints.length >= MAX_HINTS}
-            className="text-xs font-medium text-text underline hover:text-text-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
-          >
-            {hintLoading
-              ? "Thinking..."
-              : hints.length >= MAX_HINTS
-                ? "No more hints"
-                : `Get hint (${MAX_HINTS - hints.length} left)`}
-          </button>
-        )}
+        <p className="text-xs font-medium text-text">
+          Attempt {Math.min(attemptsUsed + 1, MAX_ATTEMPTS)} of {MAX_ATTEMPTS}
+        </p>
+        <p className="text-xs text-text-muted">
+          Need help? Open the helper from the bottom-left.
+        </p>
       </div>
 
-      {hints.length > 0 && (
-        <ol className="space-y-1 rounded-lg border border-border bg-surface-alt p-3">
-          {hints.map((hint, i) => (
-            <li key={i} className="text-xs text-text">
-              <span className="font-semibold">Hint {i + 1}:</span> {hint}
-            </li>
-          ))}
-        </ol>
-      )}
-
-      {hintError ? <p className="text-xs text-danger">{hintError}</p> : null}
-
       {isMultipleChoice ? (
-        <fieldset className="space-y-2 rounded-lg border border-border bg-surface p-3">
+        <fieldset className="space-y-2 rounded-lg border border-border bg-surface p-3" disabled={outOfAttempts}>
           <legend className="px-1 text-xs font-medium text-text-muted">Choose your answer</legend>
           <div className="flex gap-2">
             {multipleChoiceOptions.map((option) => (
               <button
                 key={option.label}
                 type="button"
-                disabled={loading}
+                disabled={loading || outOfAttempts}
                 aria-label={`Choose answer ${option.label}`}
                 onClick={() => {
                   setSelectedOption(option.label);
@@ -501,7 +457,7 @@ export function AnswerForm({
             })...`}
             rows={5}
             className="resize-y text-sm"
-            disabled={loading}
+            disabled={loading || outOfAttempts}
           />
           <p className="text-xs text-text-muted">
             Typed answers are preferred. Attach an image or PDF only when the question needs a drawing,
@@ -517,7 +473,7 @@ export function AnswerForm({
                 "image/webp": [".webp"],
                 "application/pdf": [".pdf"],
               }}
-              disabled={loading}
+              disabled={loading || outOfAttempts}
               maxSize={MAX_ATTACHMENT_BYTES}
               onFilesAccepted={(picked) => handleAttachmentChange(picked[0] ?? null)}
               onFilesRejected={() => {
@@ -572,8 +528,18 @@ export function AnswerForm({
 
       {error ? <p className="text-xs text-danger">{error}</p> : null}
 
+      {outOfAttempts ? (
+        <p className="rounded-lg border border-border bg-surface-alt px-3 py-2 text-xs text-text">
+          You have used all 3 attempts for this question. Open the helper to review your feedback.
+        </p>
+      ) : null}
+
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={loading || (!answer.trim() && !selectedAttachment)}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={loading || outOfAttempts || (!answer.trim() && !selectedAttachment)}
+        >
           {loading ? "Marking with AI..." : "Submit for marking"}
         </Button>
         <Button
@@ -584,8 +550,6 @@ export function AnswerForm({
             setAnswer("");
             setSelectedOption(null);
             setError(null);
-            setHints([]);
-            setHintError(null);
             clearSelectedAttachment();
           }}
           disabled={loading}

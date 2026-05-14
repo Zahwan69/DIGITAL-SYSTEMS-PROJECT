@@ -14,6 +14,9 @@ importers:
       '@napi-rs/canvas':
         specifier: ^0.1.100
         version: 0.1.100
+      '@napi-rs/canvas-win32-x64-msvc':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@radix-ui/react-dialog':
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -547,6 +550,12 @@ packages:
 
   '@napi-rs/canvas-win32-x64-msvc@0.1.80':
     resolution: {integrity: sha512-Z8jPsM6df5V8B1HrCHB05+bDiCxjE9QA//3YrkKIdVDEwn5RKaqOxCJDRJkl48cJbylcrJbW4HxZbTte8juuPg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@napi-rs/canvas-win32-x64-msvc@1.0.0':
+    resolution: {integrity: sha512-qwdhh9N6Gge/hC4pL9S1tQp0iKwhSl/dYjg7+RGp9k26iRGRi5MqqUyKGOXIWli0zOcuy5Y2wIH/jk2ry6i/jA==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
@@ -3554,6 +3563,8 @@ snapshots:
 
   '@napi-rs/canvas-win32-x64-msvc@0.1.80':
     optional: true
+
+  '@napi-rs/canvas-win32-x64-msvc@1.0.0': {}
 
   '@napi-rs/canvas@0.1.100':
     optionalDependencies:

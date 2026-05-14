@@ -50,7 +50,7 @@ export function SignOutButton({ variant = "default", className, onSignedOut }: S
       disabled={loading}
       onClick={() => void signOut()}
       className={cn(
-        "inline-flex shrink-0 items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text hover:bg-surface-alt disabled:opacity-50",
+        "inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-surface-alt hover:border-text hover:ring-2 hover:ring-text hover:ring-offset-1 hover:ring-offset-bg disabled:opacity-50",
         className
       )}
     >

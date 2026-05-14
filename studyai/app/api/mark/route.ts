@@ -90,6 +90,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Question not found." }, { status: 404 });
     }
 
+    const MAX_ATTEMPTS = 3;
+    const { count: priorAttemptCount, error: priorAttemptError } = await supabaseAdmin
+      .from("attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", auth.userId)
+      .eq("question_id", questionId);
+    if (priorAttemptError) {
+      return NextResponse.json({ error: priorAttemptError.message }, { status: 500 });
+    }
+    const attemptsBeforeInsert = priorAttemptCount ?? 0;
+    if (attemptsBeforeInsert >= MAX_ATTEMPTS) {
+      return NextResponse.json(
+        {
+          error: "Attempt limit reached for this question.",
+          attemptsUsed: attemptsBeforeInsert,
+          attemptsRemaining: 0,
+        },
+        { status: 409 }
+      );
+    }
+
     const maxScore: number = question.marks_available ?? 0;
 
     let answerImage: { mimeType: string; base64: string } | null = null;
@@ -287,6 +308,7 @@ export async function POST(request: Request) {
       answerImageUrl = signedData?.signedUrl ?? null;
     }
 
+    const attemptsUsedAfter = attemptsBeforeInsert + 1;
     return NextResponse.json({
       score: clampedScore,
       maxScore,
@@ -302,6 +324,8 @@ export async function POST(request: Request) {
       answerImagePath,
       answerImageUrl,
       needsTeacherReview: Boolean(answerImagePath),
+      attemptsUsed: attemptsUsedAfter,
+      attemptsRemaining: Math.max(0, MAX_ATTEMPTS - attemptsUsedAfter),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown server error";

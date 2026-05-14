@@ -2,6 +2,7 @@
 
 import { GraduationCap, Menu } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { AppSidebar } from "@/components/AppSidebar";
@@ -88,8 +89,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [loadProfile]);
 
-  const home = role === "admin" ? "/admin/dashboard" : role === "teacher" ? "/teacher/dashboard" : "/dashboard";
+  // Legacy 'admin' is treated as 'superadmin' until Phase 5 swaps the row.
+  const isSuperadmin = role === "admin" || role === "superadmin";
+  const home = isSuperadmin
+    ? "/admin/dashboard"
+    : role === "teacher"
+      ? "/teacher/dashboard"
+      : "/dashboard";
   const collapsed = desktopCollapsed;
+  // The paper detail page locks its layout so the content doesn't move when
+  // the sidebar collapses. Elsewhere, sidebar collapse should reflow content
+  // naturally.
+  const pathname = usePathname();
+  const lockSidebarOffset = Boolean(pathname && /^\/papers\/[^/]+/.test(pathname));
 
   return (
     <div className="flex min-h-dvh w-full bg-bg">
@@ -103,8 +115,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <div
         className={cn(
-          "flex min-h-dvh min-w-0 flex-1 flex-col transition-[padding] duration-200",
-          collapsed ? "lg:pl-16" : "lg:pl-64"
+          "flex min-h-dvh min-w-0 flex-1 flex-col",
+          // On the paper detail page, lock the content area at the sidebar-
+          // expanded position so toggling the sidebar doesn't move the
+          // questions. Everywhere else, follow the sidebar's collapse state
+          // and reflow as usual.
+          lockSidebarOffset ? "lg:pl-64" : collapsed ? "lg:pl-16" : "lg:pl-64"
         )}
       >
         <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface-alt/80 px-4 backdrop-blur lg:hidden">

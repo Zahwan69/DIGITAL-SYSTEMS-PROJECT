@@ -60,10 +60,19 @@ export function HeroBanner() {
             missed before exams.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg">
+            <Button
+              asChild
+              size="lg"
+              className="border-white/25 bg-neutral-950 text-white hover:border-white/40 hover:bg-neutral-800 hover:ring-neutral-950"
+            >
               <Link href="/auth/signup">Start Practising</Link>
             </Button>
-            <Button asChild variant="ghost" size="lg">
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="border-neutral-950/30 bg-transparent text-neutral-950 hover:bg-neutral-950/5 hover:border-neutral-950 hover:ring-neutral-950"
+            >
               <Link href="/how-it-works">See How It Works</Link>
             </Button>
           </div>

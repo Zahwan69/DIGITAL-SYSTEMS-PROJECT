@@ -154,6 +154,12 @@ export async function cropPng(
   return canvas.toBuffer("image/png");
 }
 
+export async function getPdfPageCount(pdfBytes: Uint8Array): Promise<number> {
+  const loadingTask = pdfjs.getDocument({ data: copyPdfBytes(pdfBytes), verbosity: 0 });
+  const pdf = await loadingTask.promise;
+  return pdf.numPages;
+}
+
 export async function renderPdfPageToPng(
   pdfBytes: Uint8Array,
   pageNumber: number,

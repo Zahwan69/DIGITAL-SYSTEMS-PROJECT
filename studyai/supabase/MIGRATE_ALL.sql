@@ -427,7 +427,32 @@ create index if not exists teacher_chats_mode_idx
 
 
 -- =============================================================================
--- 7. STORAGE POLICIES (only if you've created the answer-images bucket)
+-- 7. STUDENT HELPER USAGE (tracks per-student answer reveals)
+-- =============================================================================
+
+create table if not exists public.question_help_usage (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  question_id uuid not null references public.questions(id) on delete cascade,
+  answer_revealed boolean not null default false,
+  answer_revealed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id, question_id)
+);
+
+create index if not exists question_help_usage_user_idx
+  on public.question_help_usage(user_id);
+
+alter table public.question_help_usage enable row level security;
+
+drop policy if exists "own help usage" on public.question_help_usage;
+create policy "own help usage" on public.question_help_usage
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+
+-- =============================================================================
+-- 8. STORAGE POLICIES (only if you've created the answer-images bucket)
 -- =============================================================================
 -- Buckets to create in Supabase Storage (Dashboard → Storage → New bucket):
 --   - question-images   (public: TRUE — anyone reads, only service role writes)
@@ -467,6 +492,222 @@ create policy "answer_images_owner_delete"
     bucket_id = 'answer-images'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+
+-- =============================================================================
+-- 9. ROLES & PERMISSIONS (Phase 1 — Foundation)
+-- =============================================================================
+-- Adds: superadmin, administration, tutor roles alongside existing student/
+-- teacher/admin. Legacy 'admin' is intentionally KEPT valid in the CHECK so
+-- existing rows don't violate the constraint; application code treats 'admin'
+-- as an alias of 'superadmin'. We will run a one-shot
+--   update public.profiles set role = 'superadmin' where role = 'admin';
+-- later in Phase 5, after smoke testing the new UI.
+
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles
+  add constraint profiles_role_check
+  check (role in ('student','teacher','tutor','administration','superadmin','admin'));
+
+-- Distinguish school classes from tutor tuition groups. UI labels differ by
+-- role; the underlying table is shared.
+alter table public.classes
+  add column if not exists group_type text not null default 'school_class';
+alter table public.classes drop constraint if exists classes_group_type_check;
+alter table public.classes
+  add constraint classes_group_type_check
+  check (group_type in ('school_class','tuition_group'));
+create index if not exists classes_group_type_idx on public.classes(group_type);
+
+-- Audit who instantiated a class (administration vs teacher). Backfill
+-- existing rows so the column is never null on old data.
+alter table public.classes
+  add column if not exists created_by uuid references auth.users(id) on delete set null;
+update public.classes set created_by = teacher_id where created_by is null;
+
+-- Permission catalogue + role default bundle + per-user extra grants.
+create table if not exists public.permissions (
+  key text primary key,
+  description text not null
+);
+
+create table if not exists public.role_default_permissions (
+  role text not null,
+  permission_key text not null references public.permissions(key) on delete cascade,
+  primary key (role, permission_key)
+);
+
+create table if not exists public.user_extra_permissions (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  permission_key text not null references public.permissions(key) on delete cascade,
+  granted_by uuid references auth.users(id) on delete set null,
+  granted_at timestamptz not null default now(),
+  primary key (user_id, permission_key)
+);
+
+create index if not exists user_extra_permissions_user_idx
+  on public.user_extra_permissions(user_id);
+
+alter table public.permissions enable row level security;
+alter table public.role_default_permissions enable row level security;
+alter table public.user_extra_permissions enable row level security;
+
+drop policy if exists permissions_read on public.permissions;
+create policy permissions_read on public.permissions for select using (true);
+
+drop policy if exists role_default_permissions_read on public.role_default_permissions;
+create policy role_default_permissions_read on public.role_default_permissions for select using (true);
+
+drop policy if exists user_extra_permissions_owner on public.user_extra_permissions;
+create policy user_extra_permissions_owner on public.user_extra_permissions
+  for select using (user_id = auth.uid());
+
+-- Audit log: legacy policy was hard-coded to role='admin'. Widen so newly
+-- assigned 'superadmin' users keep audit visibility.
+drop policy if exists admin_audit_select on public.admin_audit_log;
+create policy admin_audit_select on public.admin_audit_log
+  for select using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role in ('admin','superadmin')
+    )
+  );
+
+-- Seed permission keys (idempotent).
+insert into public.permissions (key, description) values
+  ('users.view', 'View user list'),
+  ('users.create_student', 'Create student accounts'),
+  ('users.create_teacher', 'Create teacher accounts'),
+  ('users.create_tutor', 'Create tutor accounts'),
+  ('users.create_administration', 'Create administration accounts'),
+  ('users.update', 'Update user profiles'),
+  ('users.disable', 'Disable or re-enable users'),
+  ('users.reset_password', 'Trigger user password reset'),
+  ('users.assign_role', 'Change a user role'),
+  ('users.assign_permissions', 'Grant or revoke extra permissions'),
+  ('classes.view', 'View school classes'),
+  ('classes.create', 'Create school classes'),
+  ('classes.update', 'Update school classes'),
+  ('classes.delete', 'Delete school classes'),
+  ('classes.assign_teacher', 'Reassign a teacher to a class'),
+  ('classes.add_student', 'Add a student to a class'),
+  ('classes.remove_student', 'Remove a student from a class'),
+  ('classes.view_members', 'View class roster'),
+  ('tuition_groups.view', 'View tuition groups'),
+  ('tuition_groups.create', 'Create tuition groups'),
+  ('tuition_groups.update', 'Update tuition groups'),
+  ('tuition_groups.delete', 'Delete tuition groups'),
+  ('tuition_groups.add_student', 'Add a student to a tuition group'),
+  ('tuition_groups.remove_student', 'Remove a student from a tuition group'),
+  ('assignments.view', 'View assignments'),
+  ('assignments.create', 'Create assignments'),
+  ('assignments.update', 'Update assignments'),
+  ('assignments.delete', 'Delete assignments'),
+  ('assignments.view_submissions', 'View student submissions'),
+  ('documents.upload', 'Upload teaching documents'),
+  ('documents.view', 'View teaching documents'),
+  ('documents.update', 'Update documents'),
+  ('documents.delete', 'Delete documents'),
+  ('documents.analyse', 'Run AI analysis on documents'),
+  ('ai.teacher_chat', 'Use the teacher assistant'),
+  ('ai.generate_questions', 'Generate practice questions'),
+  ('ai.generate_worksheets', 'Generate worksheets'),
+  ('ai.review_paper', 'AI paper review'),
+  ('ai.class_analytics', 'AI class analytics summaries'),
+  ('analytics.view_own', 'See own analytics'),
+  ('analytics.view_class', 'See class analytics'),
+  ('analytics.view_group', 'See tuition group analytics'),
+  ('analytics.view_school', 'See school-wide analytics')
+on conflict (key) do nothing;
+
+-- Seed default role bundles. Idempotent via pk conflict-do-nothing.
+-- IMPORTANT: per Phase-1 spec, teachers do NOT receive classes.create,
+-- classes.add_student, classes.remove_student, or classes.assign_teacher by
+-- default. Those become user_extra_permissions grants from administration.
+
+-- Superadmin: every permission key.
+insert into public.role_default_permissions (role, permission_key)
+  select 'superadmin', key from public.permissions
+on conflict do nothing;
+
+-- Administration bundle.
+insert into public.role_default_permissions (role, permission_key) values
+  ('administration', 'users.view'),
+  ('administration', 'users.create_student'),
+  ('administration', 'users.create_teacher'),
+  ('administration', 'users.create_tutor'),
+  ('administration', 'users.update'),
+  ('administration', 'users.disable'),
+  ('administration', 'users.reset_password'),
+  ('administration', 'users.assign_permissions'),
+  ('administration', 'classes.view'),
+  ('administration', 'classes.create'),
+  ('administration', 'classes.update'),
+  ('administration', 'classes.delete'),
+  ('administration', 'classes.assign_teacher'),
+  ('administration', 'classes.add_student'),
+  ('administration', 'classes.remove_student'),
+  ('administration', 'classes.view_members'),
+  ('administration', 'assignments.view'),
+  ('administration', 'assignments.create'),
+  ('administration', 'assignments.update'),
+  ('administration', 'assignments.delete'),
+  ('administration', 'assignments.view_submissions'),
+  ('administration', 'documents.view'),
+  ('administration', 'analytics.view_class'),
+  ('administration', 'analytics.view_school')
+on conflict do nothing;
+
+-- Teacher bundle — explicitly excludes classes.create / add_student /
+-- remove_student / assign_teacher. Those are extras from administration.
+insert into public.role_default_permissions (role, permission_key) values
+  ('teacher', 'classes.view'),
+  ('teacher', 'classes.view_members'),
+  ('teacher', 'assignments.view'),
+  ('teacher', 'assignments.create'),
+  ('teacher', 'assignments.update'),
+  ('teacher', 'assignments.delete'),
+  ('teacher', 'assignments.view_submissions'),
+  ('teacher', 'documents.upload'),
+  ('teacher', 'documents.view'),
+  ('teacher', 'documents.analyse'),
+  ('teacher', 'ai.teacher_chat'),
+  ('teacher', 'ai.generate_questions'),
+  ('teacher', 'ai.generate_worksheets'),
+  ('teacher', 'ai.review_paper'),
+  ('teacher', 'ai.class_analytics'),
+  ('teacher', 'analytics.view_class')
+on conflict do nothing;
+
+-- Tutor bundle — full tuition group scope; never touches school classes.
+insert into public.role_default_permissions (role, permission_key) values
+  ('tutor', 'tuition_groups.view'),
+  ('tutor', 'tuition_groups.create'),
+  ('tutor', 'tuition_groups.update'),
+  ('tutor', 'tuition_groups.delete'),
+  ('tutor', 'tuition_groups.add_student'),
+  ('tutor', 'tuition_groups.remove_student'),
+  ('tutor', 'assignments.view'),
+  ('tutor', 'assignments.create'),
+  ('tutor', 'assignments.update'),
+  ('tutor', 'assignments.delete'),
+  ('tutor', 'assignments.view_submissions'),
+  ('tutor', 'documents.upload'),
+  ('tutor', 'documents.view'),
+  ('tutor', 'documents.analyse'),
+  ('tutor', 'ai.teacher_chat'),
+  ('tutor', 'ai.generate_questions'),
+  ('tutor', 'ai.generate_worksheets'),
+  ('tutor', 'ai.review_paper'),
+  ('tutor', 'analytics.view_group')
+on conflict do nothing;
+
+-- Student bundle.
+insert into public.role_default_permissions (role, permission_key) values
+  ('student', 'assignments.view'),
+  ('student', 'documents.view'),
+  ('student', 'analytics.view_own')
+on conflict do nothing;
 
 
 -- =============================================================================

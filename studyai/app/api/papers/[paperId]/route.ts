@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/api-auth";
+import { resolvePaperAccess } from "@/lib/assignment-access";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type PaperRow = {
@@ -46,42 +47,15 @@ type AttemptRow = {
   created_at: string;
 };
 
+type HelpUsageRow = {
+  question_id: string;
+  answer_revealed: boolean;
+};
+
 const questionNumberSorter = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base",
 });
-
-async function canAccessThroughAssignment(userId: string, paperId: string) {
-  const [{ data: memberships, error: memberError }, { data: taughtClasses, error: taughtError }] =
-    await Promise.all([
-      supabaseAdmin.from("class_members").select("class_id").eq("student_id", userId),
-      supabaseAdmin.from("classes").select("id").eq("teacher_id", userId),
-    ]);
-
-  if (memberError) throw new Error(memberError.message);
-  if (taughtError) throw new Error(taughtError.message);
-
-  const classIds = Array.from(
-    new Set([
-      ...(memberships ?? []).map((m) => m.class_id),
-      ...(taughtClasses ?? []).map((c) => c.id),
-    ])
-  );
-  if (classIds.length === 0) return false;
-
-  const { data: assignments, error: assignmentError } = await supabaseAdmin
-    .from("assignments")
-    .select("id")
-    .eq("paper_id", paperId)
-    .in("class_id", classIds)
-    .limit(1);
-
-  if (assignmentError) {
-    throw new Error(assignmentError.message);
-  }
-
-  return Boolean(assignments?.length);
-}
 
 export async function GET(
   request: Request,
@@ -110,41 +84,16 @@ export async function GET(
     return NextResponse.json({ error: "Paper not found." }, { status: 404 });
   }
 
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", auth.userId)
-    .maybeSingle();
-
-  const isUploader = paper.uploaded_by === auth.userId;
-  const isAdmin = profile?.role === "admin";
-  let hasAssignmentAccess = false;
-
-  if (!isUploader && !isAdmin) {
-    try {
-      hasAssignmentAccess = await canAccessThroughAssignment(auth.userId, paperId);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to check assignment access.";
-      return NextResponse.json({ error: message }, { status: 500 });
-    }
+  let access;
+  try {
+    access = await resolvePaperAccess(auth.userId, paper);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to check paper access.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  if (!isUploader && !isAdmin && !hasAssignmentAccess) {
+  if (!access.canRead) {
     return NextResponse.json({ error: "Paper not found." }, { status: 404 });
-  }
-
-  let originalPdfUrl: string | null = null;
-  if (paper.file_url) {
-    const { data: signed, error: signedError } = await supabaseAdmin.storage
-      .from("question-papers")
-      .createSignedUrl(paper.file_url, 60 * 60);
-    if (signedError) {
-      console.warn(
-        `[papers] could not sign question-paper URL for ${paperId}: ${signedError.message}`
-      );
-    } else {
-      originalPdfUrl = signed?.signedUrl ?? null;
-    }
   }
 
   const safePaper = {
@@ -156,7 +105,8 @@ export async function GET(
     level: paper.level,
     question_count: paper.question_count,
     created_at: paper.created_at,
-    original_pdf_url: originalPdfUrl,
+    has_original_pdf: Boolean(paper.file_url),
+    is_assigned: access.isAssigned,
   };
 
   const { data: questionData, error: questionError } = await supabaseAdmin
@@ -171,12 +121,15 @@ export async function GET(
     return NextResponse.json({ error: questionError.message }, { status: 500 });
   }
 
-  const questions = ((questionData ?? []) as QuestionRow[]).sort((a, b) =>
+  const questionRows = ((questionData ?? []) as QuestionRow[]).sort((a, b) =>
     questionNumberSorter.compare(a.question_number, b.question_number)
   );
-  const questionIds = questions.map((question) => question.id);
+  const questionIds = questionRows.map((question) => question.id);
+
+  const attemptCountByQuestion = new Map<string, number>();
   const results: Record<string, unknown> = {};
   const pastAttempts: Record<string, unknown[]> = {};
+  const revealedSet = new Set<string>();
 
   if (questionIds.length > 0) {
     const { data: attemptsData, error: attemptsError } = await supabaseAdmin
@@ -196,6 +149,10 @@ export async function GET(
     const signedUrlByPath = new Map<string, string>();
 
     for (const attempt of attempts) {
+      attemptCountByQuestion.set(
+        attempt.question_id,
+        (attemptCountByQuestion.get(attempt.question_id) ?? 0) + 1
+      );
       if (!attempt.answer_image_path || signedUrlByPath.has(attempt.answer_image_path)) {
         continue;
       }
@@ -237,7 +194,29 @@ export async function GET(
         needsTeacherReview: attempt.needs_teacher_review ?? Boolean(attempt.answer_image_path),
       };
     }
+
+    const { data: helpUsageData, error: helpUsageError } = await supabaseAdmin
+      .from("question_help_usage")
+      .select("question_id, answer_revealed")
+      .eq("user_id", auth.userId)
+      .in("question_id", questionIds);
+    if (helpUsageError) {
+      return NextResponse.json({ error: helpUsageError.message }, { status: 500 });
+    }
+    for (const row of ((helpUsageData ?? []) as HelpUsageRow[])) {
+      if (row.answer_revealed) revealedSet.add(row.question_id);
+    }
   }
+
+  const questions = questionRows.map((question) => {
+    const attemptsUsed = attemptCountByQuestion.get(question.id) ?? 0;
+    return {
+      ...question,
+      attemptsUsed,
+      attemptsRemaining: Math.max(0, 3 - attemptsUsed),
+      answerRevealed: revealedSet.has(question.id),
+    };
+  });
 
   return NextResponse.json({
     paper: safePaper,

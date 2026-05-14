@@ -46,19 +46,28 @@ export async function proxy(request: NextRequest) {
       .single();
 
     const role = profile?.role ?? "student";
+    // Legacy 'admin' is treated as 'superadmin' until Phase 5 swaps the row.
+    const isSuperadmin = role === "admin" || role === "superadmin";
 
-    if (pathname.startsWith("/admin") && role !== "admin") {
-      const redirectUrl = new URL(role === "teacher" ? "/teacher/dashboard" : "/dashboard", request.url);
+    if (pathname.startsWith("/admin") && !isSuperadmin) {
+      const redirectUrl = new URL(
+        role === "teacher" ? "/teacher/dashboard" : "/dashboard",
+        request.url
+      );
       return NextResponse.redirect(redirectUrl);
     }
 
     if (pathname.startsWith("/teacher") && role !== "teacher") {
-      const redirectUrl = new URL(role === "admin" ? "/admin/dashboard" : "/dashboard", request.url);
+      const redirectUrl = new URL(
+        isSuperadmin ? "/admin/dashboard" : "/dashboard",
+        request.url
+      );
       return NextResponse.redirect(redirectUrl);
     }
 
     // Teachers always land on the unified teacher dashboard, never the
-    // student-only /dashboard page.
+    // student-only /dashboard page. Administration and tutor land on the
+    // generic dashboard until their dedicated surfaces ship in Phase 2/3.
     if (pathname === "/dashboard" && role === "teacher") {
       return NextResponse.redirect(new URL("/teacher/dashboard", request.url));
     }

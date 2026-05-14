@@ -3,11 +3,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AnswerForm } from "@/components/AnswerForm";
 import type { MarkResult } from "@/components/AnswerForm";
 import { AppShell } from "@/components/AppShell";
+import { PageImageViewer } from "@/components/PageImageViewer";
+import {
+  StudentHelperChat,
+  type QuestionSummary,
+  type StudentHelperChatHandle,
+} from "@/components/StudentHelperChat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +28,8 @@ type Paper = {
   level: string;
   question_count: number;
   created_at: string;
-  original_pdf_url: string | null;
+  has_original_pdf: boolean;
+  is_assigned: boolean;
 };
 
 type Question = {
@@ -36,6 +43,9 @@ type Question = {
   has_diagram: boolean;
   page_start: number | null;
   page_end: number | null;
+  attemptsUsed: number;
+  attemptsRemaining: number;
+  answerRevealed: boolean;
 };
 
 type PastAttempt = {
@@ -85,12 +95,6 @@ function paperMeta(paper: Paper, questionCount: number) {
     `${questionCount} question${questionCount !== 1 ? "s" : ""}`,
   ].filter(Boolean);
   return details.join(" - ");
-}
-
-function pdfViewerSrc(url: string, page: number | null) {
-  if (!page || page < 1) return url;
-  const separator = url.includes("#") ? "&" : "#";
-  return `${url}${separator}page=${page}`;
 }
 
 function InlineQuestionImage({
@@ -155,9 +159,8 @@ export default function PaperPage() {
   const [pastAttempts, setPastAttempts] = useState<Record<string, PastAttempt[]>>({});
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerPage, setViewerPage] = useState<number | null>(null);
-  const [freshPdfUrl, setFreshPdfUrl] = useState<string | null>(null);
-  const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerError, setViewerError] = useState<string | null>(null);
+  const [draftByQuestion, setDraftByQuestion] = useState<Record<string, string>>({});
+  const helperRef = useRef<StudentHelperChatHandle | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -190,9 +193,67 @@ export default function PaperPage() {
     void load();
   }, [id, router]);
 
-  function handleSubmitted(questionId: string, result: MarkResult) {
-    setResults((prev) => ({ ...prev, [questionId]: result }));
-  }
+  const handleSubmitted = useCallback(
+    (questionId: string, result: MarkResult) => {
+      setResults((prev) => ({ ...prev, [questionId]: result }));
+      if (
+        typeof result.attemptsUsed === "number" ||
+        typeof result.attemptsRemaining === "number"
+      ) {
+        setQuestions((prev) =>
+          prev.map((q) =>
+            q.id === questionId
+              ? {
+                  ...q,
+                  attemptsUsed: result.attemptsUsed ?? q.attemptsUsed,
+                  attemptsRemaining: result.attemptsRemaining ?? q.attemptsRemaining,
+                }
+              : q
+          )
+        );
+      }
+    },
+    []
+  );
+
+  const handleDraftChange = useCallback((questionId: string, draft: string) => {
+    setDraftByQuestion((prev) => {
+      if (prev[questionId] === draft) return prev;
+      return { ...prev, [questionId]: draft };
+    });
+  }, []);
+
+  const handleUsageChanged = useCallback(
+    (questionId: string, answerRevealed: boolean) => {
+      setQuestions((prev) =>
+        prev.map((q) => (q.id === questionId ? { ...q, answerRevealed } : q))
+      );
+    },
+    []
+  );
+
+  const handleOpenViewerAt = useCallback((page: number | null) => {
+    setViewerPage(page);
+    setViewerOpen(true);
+  }, []);
+
+  const openHelperAt = useCallback((questionId: string) => {
+    helperRef.current?.openWithQuestion(questionId);
+  }, []);
+
+  const helperQuestions: QuestionSummary[] = useMemo(
+    () =>
+      questions.map((q) => ({
+        id: q.id,
+        question_number: q.question_number,
+        page_start: q.page_start,
+        attemptsUsed: q.attemptsUsed,
+        attemptsRemaining: q.attemptsRemaining,
+        answerRevealed: q.answerRevealed,
+        hasFeedback: Boolean(results[q.id]?.feedback) || (pastAttempts[q.id]?.length ?? 0) > 0,
+      })),
+    [pastAttempts, questions, results]
+  );
 
   if (loading) {
     return (
@@ -213,58 +274,18 @@ export default function PaperPage() {
     );
   }
 
-  const hasOriginalPdf = Boolean(paper.original_pdf_url);
-  const activePdfUrl = freshPdfUrl ?? paper.original_pdf_url;
-  const viewerActive = viewerOpen && Boolean(activePdfUrl);
-  const viewerSrc =
-    activePdfUrl && viewerActive ? pdfViewerSrc(activePdfUrl, viewerPage) : null;
-
-  async function openViewerAtPage(page: number | null) {
-    setViewerPage(page);
-    setViewerOpen(true);
-    setViewerError(null);
-    setViewerLoading(true);
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        setViewerError("Session expired. Please sign in again.");
-        return;
-      }
-      const response = await fetch(`/api/papers/${id}/pdf-url`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        url?: string | null;
-        error?: string;
-      };
-      if (!response.ok) {
-        setViewerError(data.error ?? "Could not refresh the PDF link.");
-        return;
-      }
-      if (data.url) {
-        setFreshPdfUrl(data.url);
-      }
-    } catch {
-      setViewerError("Could not refresh the PDF link.");
-    } finally {
-      setViewerLoading(false);
-    }
-  }
-
-  function closeViewer() {
-    setViewerOpen(false);
-    setViewerError(null);
-  }
+  const viewerActive = viewerOpen && paper.has_original_pdf;
 
   return (
     <AppShell>
       <main
         className={
           viewerActive
-            ? "mx-auto w-full max-w-7xl lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6"
-            : "mx-auto w-full max-w-4xl"
+            ? "mx-auto w-full max-w-7xl lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4"
+            : // Compensate AppShell's lg:pl-64 (which mirrors the sidebar) so
+              // the questions sit at the true viewport centre. Fixed in both
+              // sidebar states because the AppShell padding is fixed.
+              "mx-auto w-full max-w-4xl lg:translate-x-[-8rem]"
         }
       >
         <div className="space-y-6">
@@ -272,31 +293,24 @@ export default function PaperPage() {
             <Link href="/papers" className="text-sm text-text hover:underline">
               ← My Papers
             </Link>
-            <h1 className="mt-2 text-2xl font-bold text-text">
-              {paperTitle(paper)}
-            </h1>
+            <h1 className="mt-2 text-2xl font-bold text-text">{paperTitle(paper)}</h1>
             <p className="mt-1 text-sm text-text-muted">
               {paperMeta(paper, questions.length)}
             </p>
           </div>
 
-          {hasOriginalPdf ? (
+          {paper.has_original_pdf ? (
             <div className="sticky top-4 z-30 -mx-1 flex justify-end">
               <Button
                 type="button"
                 variant={viewerActive ? "secondary" : "outline"}
                 size="sm"
                 className="shadow-md"
-                disabled={viewerLoading}
                 onClick={() =>
-                  viewerActive ? closeViewer() : void openViewerAtPage(null)
+                  viewerActive ? setViewerOpen(false) : handleOpenViewerAt(null)
                 }
               >
-                {viewerLoading
-                  ? "Loading..."
-                  : viewerActive
-                    ? "Hide original paper"
-                    : "View original paper"}
+                {viewerActive ? "Hide original paper" : "View original paper"}
               </Button>
             </div>
           ) : null}
@@ -310,7 +324,7 @@ export default function PaperPage() {
             <div className="space-y-4">
               {questions.map((q) => (
                 <Card key={q.id}>
-                  <CardHeader className="pb-2">
+                  <CardHeader className={viewerActive ? "p-4 pb-2 sm:p-4 sm:pb-2" : "pb-2"}>
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-base text-text">
                         Q{q.question_number}
@@ -327,17 +341,31 @@ export default function PaperPage() {
                         <Badge variant="secondary">
                           {q.marks_available} mark{q.marks_available !== 1 ? "s" : ""}
                         </Badge>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openHelperAt(q.id)}
+                        >
+                          Ask helper
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="space-y-3">
+                  <CardContent
+                    className={
+                      viewerActive
+                        ? "space-y-3 p-4 pt-0 sm:p-4 sm:pt-0"
+                        : "space-y-3"
+                    }
+                  >
                     {q.image_url ? (
                       <InlineQuestionImage
                         src={q.image_url}
                         alt={`Diagram for question ${q.question_number}`}
                       />
-                    ) : hasOriginalPdf ? (
+                    ) : paper.has_original_pdf ? (
                       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-surface-alt p-3 text-xs text-text-muted">
                         <p>
                           This question may refer to a diagram or graph. Open the original paper viewer to check the source document.
@@ -346,8 +374,7 @@ export default function PaperPage() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          disabled={viewerLoading}
-                          onClick={() => void openViewerAtPage(q.page_start)}
+                          onClick={() => handleOpenViewerAt(q.page_start)}
                         >
                           {q.page_start
                             ? `Open at page ${q.page_start}`
@@ -356,15 +383,16 @@ export default function PaperPage() {
                       </div>
                     ) : null}
 
-                    <p className="whitespace-pre-wrap text-sm text-text">
-                      {q.question_text}
-                    </p>
+                    <p className="whitespace-pre-wrap text-sm text-text">{q.question_text}</p>
 
                     <AnswerForm
                       questionId={q.id}
                       questionText={q.question_text}
                       marksAvailable={q.marks_available}
+                      attemptsUsed={q.attemptsUsed}
+                      attemptsRemaining={q.attemptsRemaining}
                       onSubmitted={(result) => handleSubmitted(q.id, result)}
+                      onDraftChange={handleDraftChange}
                       revealed={revealed}
                       existingResult={results[q.id] ?? null}
                     />
@@ -378,7 +406,9 @@ export default function PaperPage() {
                           {(pastAttempts[q.id] ?? []).map((attempt) => (
                             <li key={attempt.id} className="py-2">
                               <div className="flex items-center justify-between">
-                                <span className={`text-sm font-semibold ${scoreColour(attempt.percentage)}`}>
+                                <span
+                                  className={`text-sm font-semibold ${scoreColour(attempt.percentage)}`}
+                                >
                                   {attempt.score}/{attempt.max_score} · {attempt.percentage}%
                                 </span>
                                 <span className="text-xs text-text-muted">
@@ -419,43 +449,25 @@ export default function PaperPage() {
           )}
         </div>
 
-        {viewerActive && viewerSrc ? (
-          <aside
-            className="fixed inset-0 z-40 flex flex-col bg-surface lg:sticky lg:inset-auto lg:top-0 lg:z-auto lg:h-screen lg:self-start lg:bg-transparent"
-          >
-            <div className="pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-2">
-              <a
-                href={viewerSrc}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="pointer-events-auto rounded-md border border-border bg-surface px-2 py-1 text-xs text-text shadow-sm hover:bg-surface-alt"
-              >
-                Open in new tab
-              </a>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="pointer-events-auto"
-                onClick={closeViewer}
-              >
-                Close
-              </Button>
-            </div>
-            {viewerError ? (
-              <p className="absolute left-3 top-3 z-10 max-w-[60%] rounded-md bg-surface px-2 py-1 text-xs text-danger shadow-sm">
-                {viewerError}
-              </p>
-            ) : null}
-            <iframe
-              key={viewerSrc}
-              src={viewerSrc}
-              title="Original question paper"
-              className="h-full w-full flex-1 border-0 bg-surface lg:rounded-xl lg:border lg:border-border"
-            />
-          </aside>
+        {viewerActive ? (
+          <PageImageViewer
+            paperId={paper.id}
+            initialPage={viewerPage}
+            onClose={() => setViewerOpen(false)}
+          />
         ) : null}
       </main>
+
+      {questions.length > 0 ? (
+        <StudentHelperChat
+          ref={helperRef}
+          questions={helperQuestions}
+          isAssigned={paper.is_assigned}
+          draftAnswerByQuestion={draftByQuestion}
+          onOpenViewerAt={handleOpenViewerAt}
+          onUsageChanged={handleUsageChanged}
+        />
+      ) : null}
     </AppShell>
   );
 }

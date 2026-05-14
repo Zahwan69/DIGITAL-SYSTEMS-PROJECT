@@ -10,7 +10,15 @@ import {
   Users,
 } from "lucide-react";
 
-export type AppRole = "student" | "teacher" | "admin";
+export type AppRole =
+  | "student"
+  | "teacher"
+  | "tutor"
+  | "administration"
+  | "superadmin"
+  // Legacy alias kept until Phase 5 data migration runs. Treat anywhere as
+  // a synonym of "superadmin".
+  | "admin";
 
 export const studentNavItems = [
   { href: "/dashboard", pathMatch: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -36,8 +44,11 @@ export const adminNavItems = [
 ] as const;
 
 export function navForRole(role: string | null) {
-  if (role === "admin") return adminNavItems;
+  // Legacy 'admin' is treated as 'superadmin' until the Phase 5 data swap.
+  if (role === "admin" || role === "superadmin") return adminNavItems;
   if (role === "teacher") return teacherNavItems;
+  // Phase 1: administration + tutor land on the student nav as a stub until
+  // their dedicated dashboards ship in Phase 2/3.
   return studentNavItems;
 }
 

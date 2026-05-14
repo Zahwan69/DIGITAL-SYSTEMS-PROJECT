@@ -35,7 +35,7 @@ export function Button({ children, className, disabled, onClick, ...props }: Sta
       disabled={disabled || state === "loading"}
       onClick={() => void handleClick()}
       className={cn(
-        "inline-flex h-10 items-center justify-center gap-2 rounded-[10px] border border-border-strong bg-accent px-4 text-sm font-medium text-text-on-accent transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-accent-hover hover:shadow-[0_8px_22px_rgba(10,10,10,0.12)] disabled:cursor-not-allowed disabled:opacity-60 dark:hover:shadow-[0_8px_22px_rgba(0,0,0,0.35)]",
+        "inline-flex h-10 items-center justify-center gap-2 rounded-full border border-text-on-accent bg-accent px-5 text-sm font-medium text-text-on-accent transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-accent-hover hover:ring-2 hover:ring-text-on-accent hover:ring-offset-1 hover:ring-offset-bg hover:shadow-[0_8px_22px_rgba(10,10,10,0.18)] disabled:cursor-not-allowed disabled:opacity-60 dark:hover:shadow-[0_8px_22px_rgba(0,0,0,0.4)]",
         className
       )}
       {...props}

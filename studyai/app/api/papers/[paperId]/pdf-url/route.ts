@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/api-auth";
+import { resolvePaperAccess } from "@/lib/assignment-access";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type PaperRow = {
@@ -9,38 +10,11 @@ type PaperRow = {
   file_url: string | null;
 };
 
-async function canAccessThroughAssignment(userId: string, paperId: string) {
-  const [{ data: memberships, error: memberError }, { data: taughtClasses, error: taughtError }] =
-    await Promise.all([
-      supabaseAdmin.from("class_members").select("class_id").eq("student_id", userId),
-      supabaseAdmin.from("classes").select("id").eq("teacher_id", userId),
-    ]);
-
-  if (memberError) throw new Error(memberError.message);
-  if (taughtError) throw new Error(taughtError.message);
-
-  const classIds = Array.from(
-    new Set([
-      ...(memberships ?? []).map((m) => m.class_id),
-      ...(taughtClasses ?? []).map((c) => c.id),
-    ])
-  );
-  if (classIds.length === 0) return false;
-
-  const { data: assignments, error: assignmentError } = await supabaseAdmin
-    .from("assignments")
-    .select("id")
-    .eq("paper_id", paperId)
-    .in("class_id", classIds)
-    .limit(1);
-
-  if (assignmentError) {
-    throw new Error(assignmentError.message);
-  }
-
-  return Boolean(assignments?.length);
-}
-
+/**
+ * On the practice path, no role gets a direct signed PDF URL anymore. The
+ * page-image route is the only render surface. Existing callers expect
+ * `{ url, restricted? }` so we keep that shape and always return restricted.
+ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ paperId: string }> }
@@ -66,40 +40,17 @@ export async function GET(
     return NextResponse.json({ error: "Paper not found." }, { status: 404 });
   }
 
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", auth.userId)
-    .maybeSingle();
-
-  const isUploader = paper.uploaded_by === auth.userId;
-  const isAdmin = profile?.role === "admin";
-  let hasAssignmentAccess = false;
-
-  if (!isUploader && !isAdmin) {
-    try {
-      hasAssignmentAccess = await canAccessThroughAssignment(auth.userId, paperId);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "access check failed";
-      return NextResponse.json({ error: message }, { status: 500 });
-    }
+  let access;
+  try {
+    access = await resolvePaperAccess(auth.userId, paper);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "access check failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  if (!isUploader && !isAdmin && !hasAssignmentAccess) {
+  if (!access.canRead) {
     return NextResponse.json({ error: "Paper not found." }, { status: 404 });
   }
 
-  if (!paper.file_url) {
-    return NextResponse.json({ url: null });
-  }
-
-  const { data: signed, error: signedError } = await supabaseAdmin.storage
-    .from("question-papers")
-    .createSignedUrl(paper.file_url, 60 * 60);
-
-  if (signedError) {
-    return NextResponse.json({ error: signedError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ url: signed?.signedUrl ?? null });
+  return NextResponse.json({ url: null, restricted: true });
 }

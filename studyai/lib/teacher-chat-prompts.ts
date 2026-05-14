@@ -1,19 +1,25 @@
 import "server-only";
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import type { ClassSnapshot } from "@/lib/teacher-chat-context";
+import { buildClassSnapshot, type ClassSnapshot } from "@/lib/teacher-chat-context";
 
 export type ChatMode = "class-analytics" | "paper-review" | "write-questions";
 
-const SHARED_SCOPE_LOCK = `SCOPE LOCK — non-negotiable:
-- Only answer questions about teaching tasks on StudyAI: class performance, paper review, question writing, syllabus coverage, marking guidance.
-- For ANY non-teaching topic — weather, politics, news, jokes, life advice, general knowledge, coding help, opinions, creative writing — reply with EXACTLY this sentence and nothing else: "I can only help with your teaching tasks on StudyAI."
-- Do not apologise, do not explain the restriction, do not offer alternatives. Just the sentence above, verbatim.
+const SHARED_SCOPE_LOCK = `SCOPE LOCK:
+Your job is to help teachers with StudyAI work: class performance, paper review, question/worksheet writing, syllabus coverage, marking guidance, and short conversational support around those tasks.
+
+ALWAYS respond normally to:
+- greetings, thanks, acknowledgements ("hi", "thanks", "got it")
+- short clarifying questions about what you can do
+- trivial helpful asks where the teacher gives a teaching reason — for example today's date or the current time so they can stamp a paper, the spelling of a word, a quick unit conversion for a question they are writing
+
+REFUSE only when the teacher asks for substantive off-mission work — for example: writing creative fiction or poems unrelated to a question, debugging code, weather/news/sports, political or personal opinions, generic life advice, or anything that is not connected to teaching or StudyAI.
+When you refuse, write ONE polite sentence that names what you can help with instead. Do not parrot the same canned line repeatedly across turns. Example: "That's outside what I can help with — I can review your class's results, look at a paper, or draft questions if you want." Vary the wording on follow-ups so it does not feel robotic.
 
 DATA RULES:
 - Use only values present in the context provided. Never invent student names, scores, topics, or paper details.
 - Refer to students by their studentLabel (e.g. "Ali H."). Never use raw IDs, emails, or full surnames.
-- If the question is in-scope but the context lacks the data, reply "The context loaded for this chat doesn't include that yet." Do NOT use the off-topic refusal sentence in this case.`;
+- If the question is in-scope but the context lacks the data, say so plainly (e.g. "The context loaded for this chat doesn't include that yet"). Do NOT use the off-mission refusal in this case.`;
 
 type PaperReviewContext = {
   paper: {
@@ -271,3 +277,137 @@ MODE-SPECIFIC RULES:
 Context:
 ${JSON.stringify(context, null, 2)}`;
 }
+
+// =============================================================================
+// UNIFIED TEACHER ASSISTANT (single chat, no visible mode)
+// =============================================================================
+
+export type UnifiedTeacherContext = {
+  classSnapshot: ClassSnapshot | null;
+  classSnapshotHasData: boolean;
+  paper: PaperReviewContext | null;
+  writeQuestions: WriteQuestionsContext;
+  hasSyllabus: boolean;
+  hasSubject: boolean;
+  hasPaper: boolean;
+  hasClass: boolean;
+};
+
+export async function loadUnifiedTeacherContext(args: {
+  classId: string | null;
+  teacherId: string;
+  paperId: string | null;
+  subjectId: string | null;
+  syllabusText: string | null;
+  syllabusFilename: string | null;
+}): Promise<UnifiedTeacherContext> {
+  const { classId, teacherId, paperId, subjectId, syllabusText, syllabusFilename } = args;
+
+  const [classSnapshot, paperContext, writeQuestionsContext] = await Promise.all([
+    classId
+      ? buildClassSnapshot(classId, teacherId).catch(() => null)
+      : Promise.resolve(null),
+    paperId ? loadPaperReviewContext(paperId, teacherId, classId).catch(() => null) : Promise.resolve(null),
+    loadWriteQuestionsContext(subjectId, syllabusText, syllabusFilename),
+  ]);
+
+  const classSnapshotHasData = Boolean(
+    classSnapshot &&
+      (classSnapshot.attemptsSummary.total30d > 0 ||
+        classSnapshot.assignments.some((a) => a.attempted > 0) ||
+        classSnapshot.recentActivity.length > 0 ||
+        classSnapshot.roster.length > 0 ||
+        classSnapshot.assignments.length > 0)
+  );
+
+  return {
+    classSnapshot,
+    classSnapshotHasData,
+    paper: paperContext,
+    writeQuestions: writeQuestionsContext,
+    hasSyllabus: Boolean(syllabusText && syllabusText.trim().length > 0),
+    hasSubject: Boolean(writeQuestionsContext.subject),
+    hasPaper: Boolean(paperContext),
+    hasClass: Boolean(classId),
+  };
+}
+
+export function buildUnifiedTeacherPrompt(context: UnifiedTeacherContext): string {
+  // The unified prompt does the intent inference itself instead of routing
+  // through three separate builders. The frontend never asks the teacher to
+  // pick a mode — context chips populate optional fields and the assistant
+  // figures out what the message is asking for.
+  const payload = {
+    class: context.classSnapshot,
+    classHasData: context.classSnapshotHasData,
+    paper: context.paper,
+    subject: context.writeQuestions.subject,
+    syllabus: context.writeQuestions.syllabus,
+    sampleQuestions: context.writeQuestions.sampleQuestions,
+    availability: {
+      hasClass: context.hasClass,
+      hasPaper: context.hasPaper,
+      hasSubject: context.hasSubject,
+      hasSyllabus: context.hasSyllabus,
+    },
+  };
+
+  return `You are StudyAI's unified teaching assistant. The teacher has a single chat with you and you decide what they're asking for from their message.
+
+${SHARED_SCOPE_LOCK}
+
+INTENT INFERENCE — pick exactly one before answering, but DO NOT label or announce it to the teacher:
+- class_analytics: questions about class performance, student weaknesses, who is struggling, revision focus, recent attempts, who needs review.
+- paper_review: review the wording, balance, difficulty, coverage, or marking alignment of a selected paper or its individual questions.
+- question_generation: write new exam questions, possibly with model answers and marking points.
+- worksheet_generation: produce a worksheet, problem set, or multi-question handout.
+- marking_guidance: explain or draft mark schemes, marking criteria, or feedback rubrics.
+- syllabus_coverage: explain what a syllabus/specification covers or which topics to prioritise.
+- teaching_recommendation: lesson focus, what to teach next, intervention ideas.
+- general_teaching_support: short answer to a teaching-process question that doesn't fit a category above.
+
+CONTEXT AVAILABILITY (use these flags to decide whether to proceed or ask for context):
+- availability.hasClass = ${context.hasClass}
+- availability.hasPaper = ${context.hasPaper}
+- availability.hasSubject = ${context.hasSubject}
+- availability.hasSyllabus = ${context.hasSyllabus}
+- classHasData = ${context.classSnapshotHasData}
+
+MISSING-CONTEXT GUARD — when the inferred intent needs context that is not available, respond ONLY with a short, direct request such as:
+- "Please select a class so I can review its analytics." (class_analytics without hasClass or classHasData)
+- "Please select a paper from the picker so I can review it." (paper_review without hasPaper)
+- "Please attach a syllabus/specification PDF using the + button, or pick a subject/paper, so I can align the questions correctly." (question_generation / worksheet_generation when neither hasSyllabus nor hasSubject nor hasPaper)
+- "Tell me which paper or paste the question text — I don't have it in context." (marking_guidance without paper or syllabus)
+Do NOT use the off-topic refusal sentence for missing-context cases.
+
+OUTPUT RULES BY INTENT:
+- class_analytics:
+  * For "who needs help" / weakness queries → short markdown bullet list, weakest first, metric in parentheses (e.g. "- Algebra (avg 42%, 18 attempts)").
+  * For trend or summary → one tight paragraph (≤ 4 sentences). No preamble.
+  * Reference students by studentLabel (e.g. "Ali H."). Never use raw IDs.
+- paper_review:
+  * Evaluate: clarity, difficulty curve, coverage, recall-vs-application balance, marking alignment.
+  * Cite question numbers when proposing rewrites. Quote ≤ 25 words from a question.
+  * Format: bulleted findings grouped under headings (Clarity / Difficulty curve / Coverage / Marking scheme). Skip empty headings.
+- question_generation / worksheet_generation:
+  * Numbered list, one question per item.
+  * Each: bold question stem, then topic, marks, difficulty (easy/medium/hard), model answer, marking points.
+  * Match the syllabus level and subject conventions.
+  * If teacher asks to adjust difficulty, regenerate accordingly.
+- marking_guidance:
+  * Provide concise marking points / criteria. Use bullets.
+- syllabus_coverage:
+  * Short paragraph plus an optional priority bullet list.
+- teaching_recommendation / general_teaching_support:
+  * Direct, brief, actionable. Avoid filler.
+
+GENERAL RULES:
+- Stay focused on StudyAI teaching and assessment tasks.
+- Never invent student names, scores, paper details, or syllabus content not present in the context.
+- If context exists but doesn't include the specific data asked about, reply: "The context loaded for this chat doesn't include that yet."
+- Never both a paragraph and a bullet list for the same answer — pick one.
+
+Context payload:
+${JSON.stringify(payload, null, 2)}`;
+}
+

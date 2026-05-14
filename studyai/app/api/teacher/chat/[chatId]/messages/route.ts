@@ -3,14 +3,9 @@ import { NextResponse } from "next/server";
 import { authenticateRequest, requireTeacher } from "@/lib/api-auth";
 import { generateGeminiContent } from "@/lib/gemini";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { buildClassSnapshot } from "@/lib/teacher-chat-context";
 import {
-  buildClassAnalyticsPrompt,
-  buildPaperReviewPrompt,
-  buildWriteQuestionsPrompt,
-  loadPaperReviewContext,
-  loadWriteQuestionsContext,
-  type ChatMode,
+  buildUnifiedTeacherPrompt,
+  loadUnifiedTeacherContext,
 } from "@/lib/teacher-chat-prompts";
 
 async function assertTeacher(request: Request) {
@@ -27,48 +22,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number) {
   });
 
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeout));
-}
-
-type EmptyContextResult = { empty: true; reason: string } | { empty: false; systemPrompt: string };
-
-async function buildSystemForMode(chat: {
-  mode: ChatMode;
-  class_id: string;
-  paper_id: string | null;
-  subject_id: string | null;
-  syllabus_text: string | null;
-  syllabus_filename: string | null;
-}, teacherId: string): Promise<EmptyContextResult> {
-  if (chat.mode === "paper-review") {
-    if (!chat.paper_id) {
-      return { empty: true, reason: "This chat needs a paper selected. Open the chat header and pick one of your papers." };
-    }
-    const ctx = await loadPaperReviewContext(chat.paper_id, teacherId, chat.class_id);
-    if (!ctx || (ctx.questions.length === 0 && ctx.studentAttempts.length === 0)) {
-      return { empty: true, reason: "The selected paper has no questions saved yet. Re-run the paper analysis and try again." };
-    }
-    return { empty: false, systemPrompt: buildPaperReviewPrompt(ctx) };
-  }
-
-  if (chat.mode === "write-questions") {
-    const ctx = await loadWriteQuestionsContext(chat.subject_id, chat.syllabus_text, chat.syllabus_filename);
-    if (!ctx.subject && !ctx.syllabus.text && ctx.sampleQuestions.length === 0) {
-      return { empty: true, reason: "Pick a subject or upload a syllabus PDF before asking for questions." };
-    }
-    return { empty: false, systemPrompt: buildWriteQuestionsPrompt(ctx) };
-  }
-
-  const snapshot = await buildClassSnapshot(chat.class_id, teacherId);
-  const hasClassContext =
-    snapshot.attemptsSummary.total30d > 0 ||
-    snapshot.assignments.some((assignment) => assignment.attempted > 0) ||
-    snapshot.recentActivity.length > 0 ||
-    snapshot.roster.length > 0 ||
-    snapshot.assignments.length > 0;
-  if (!hasClassContext) {
-    return { empty: true, reason: "Add students or assign a paper before using class analytics chat for this class." };
-  }
-  return { empty: false, systemPrompt: buildClassAnalyticsPrompt(snapshot) };
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ chatId: string }> }) {
@@ -94,19 +47,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ cha
     );
   }
 
-  let modeContext: EmptyContextResult;
+  let systemPrompt: string;
   try {
-    modeContext = await buildSystemForMode(
-      {
-        mode: (chat.mode ?? "class-analytics") as ChatMode,
-        class_id: chat.class_id,
-        paper_id: chat.paper_id ?? null,
-        subject_id: chat.subject_id ?? null,
-        syllabus_text: chat.syllabus_text ?? null,
-        syllabus_filename: chat.syllabus_filename ?? null,
-      },
-      gate.userId
-    );
+    const unifiedContext = await loadUnifiedTeacherContext({
+      classId: chat.class_id ?? null,
+      teacherId: gate.userId,
+      paperId: chat.paper_id ?? null,
+      subjectId: chat.subject_id ?? null,
+      syllabusText: chat.syllabus_text ?? null,
+      syllabusFilename: chat.syllabus_filename ?? null,
+    });
+    systemPrompt = buildUnifiedTeacherPrompt(unifiedContext);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load chat context.";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -119,27 +70,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ cha
     .single();
 
   if (userInsertError) return NextResponse.json({ error: userInsertError.message }, { status: 500 });
-
-  if (modeContext.empty) {
-    const { data: assistantMessage, error: assistantInsertError } = await supabaseAdmin
-      .from("teacher_chat_messages")
-      .insert({ chat_id: chatId, role: "assistant", content: modeContext.reason })
-      .select("id, role, content, created_at")
-      .single();
-
-    if (assistantInsertError) return NextResponse.json({ error: assistantInsertError.message }, { status: 500 });
-
-    await supabaseAdmin
-      .from("teacher_chats")
-      .update({
-        last_message_at: new Date().toISOString(),
-        ...(chat.title === "New chat" ? { title: content.slice(0, 60) } : {}),
-      })
-      .eq("id", chatId)
-      .eq("teacher_id", gate.userId);
-
-    return NextResponse.json({ userMessage, assistantMessage });
-  }
 
   const { data: history, error: historyError } = await supabaseAdmin
     .from("teacher_chat_messages")
@@ -157,7 +87,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cha
 
   try {
     const { result } = await withTimeout(
-      generateGeminiContent([{ text: `${modeContext.systemPrompt}\n\nChat history:\n${transcript}` }]),
+      generateGeminiContent([{ text: `${systemPrompt}\n\nChat history:\n${transcript}` }]),
       60000
     );
     const assistantText = result.response.text();

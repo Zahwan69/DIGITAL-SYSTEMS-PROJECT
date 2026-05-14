@@ -4,10 +4,25 @@ import { logAdminAction } from "@/lib/admin-audit";
 import { authenticateRequest, requireAdmin } from "@/lib/api-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-type Role = "student" | "teacher" | "admin";
+type Role =
+  | "student"
+  | "teacher"
+  | "tutor"
+  | "administration"
+  | "superadmin"
+  | "admin"; // legacy alias kept until Phase 5
+
+const ALLOWED_ROLES = new Set<Role>([
+  "student",
+  "teacher",
+  "tutor",
+  "administration",
+  "superadmin",
+  "admin",
+]);
 
 function isRole(value: unknown): value is Role {
-  return value === "student" || value === "teacher" || value === "admin";
+  return typeof value === "string" && ALLOWED_ROLES.has(value as Role);
 }
 
 async function listAllAuthUsers() {
@@ -175,7 +190,7 @@ export async function POST(request: Request) {
   if (!email || !email.includes("@")) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   }
-  if (!role || !["student", "teacher", "admin"].includes(role)) {
+  if (!role || !ALLOWED_ROLES.has(role)) {
     return NextResponse.json({ error: "Invalid role." }, { status: 400 });
   }
   if (password.length < 6) {

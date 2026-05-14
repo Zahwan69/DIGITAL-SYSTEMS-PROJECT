@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   BookOpen,
   ChevronsLeft,
@@ -100,13 +100,36 @@ function ProfileMenu({
   placement?: "top" | "bottom";
 }) {
   const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const displayName = profile?.full_name || profile?.username || "Account";
   const email = profile?.email || "Signed in";
   const initial = profileInitial(profile);
   const showXp = role === "student" || role === "teacher";
 
+  useEffect(() => {
+    if (!open) return;
+    function handlePointer(e: MouseEvent | TouchEvent) {
+      const node = wrapperRef.current;
+      if (!node) return;
+      if (e.target instanceof Node && !node.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointer);
+    document.addEventListener("touchstart", handlePointer);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointer);
+      document.removeEventListener("touchstart", handlePointer);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapperRef}>
       {open ? (
         <div
           className={cn(
@@ -145,12 +168,21 @@ function ProfileMenu({
         onClick={() => setOpen((current) => !current)}
         className={cn(
           "flex w-full items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2 text-left transition-colors hover:border-border-strong hover:bg-surface-alt",
-          collapsed && "lg:justify-center lg:px-0"
+          collapsed &&
+            "lg:justify-center lg:gap-0 lg:border-0 lg:bg-transparent lg:p-0 hover:lg:bg-transparent"
         )}
         aria-expanded={open}
         aria-label="Open profile menu"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-accent text-sm font-semibold text-text-on-accent">
+        <span
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-accent text-sm font-semibold text-text-on-accent",
+            // When collapsed the wrapper button has no chrome, so the avatar
+            // grows to fill the sidebar header square instead of looking
+            // like a small dot inside an empty box.
+            collapsed && "lg:h-11 lg:w-11 lg:rounded-xl"
+          )}
+        >
           {initial}
         </span>
         <span className={cn("min-w-0", collapsed && "lg:sr-only")}>
@@ -215,7 +247,7 @@ export function AppSidebar({
       <aside
         aria-label="Primary navigation"
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-surface-alt transition-[transform,width] duration-200 lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-surface-alt transition-transform duration-200 lg:translate-x-0",
           collapsedClass,
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
